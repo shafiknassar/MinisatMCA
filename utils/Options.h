@@ -324,6 +324,11 @@ class StringOption : public Option
         return true;
     }
 
+    const char* getStr()
+    {
+    	return value;
+    }
+
     virtual void help (bool verbose = false){
         fprintf(stderr, "  -%-10s = %8s\n", name, type_name);
         if (verbose){

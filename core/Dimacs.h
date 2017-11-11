@@ -83,7 +83,8 @@ static void parse_DIMACS_assumptions(gzFile input_stream,
 	StreamBuffer in(input_stream);
     int parsed_lit, var;
 	int nAssumptions = 0, expectedAssumptions = 0;
-	for (;;){
+	for (;;)
+	{
 		skipWhitespace(in);
 		if (*in == EOF) break;
 		else if (*in == 'p')
@@ -115,7 +116,11 @@ static void parse_DIMACS_assumptions(gzFile input_stream,
 	}
 	if (nAssumptions != expectedAssumptions)
 	{
-        fprintf(stderr, "WARNING! DIMACS header mismatch: wrong number of assumptions.\n");
+        fprintf(stderr, "|       WARNING! DIMACS header mismatch: wrong number of assumptions.        |\n");
+	}
+	else
+	{
+		printf("|                            Assumptions added!                               |\n");
 	}
 }
 

@@ -81,6 +81,7 @@ int main(int argc, char** argv)
 #endif
         // Extra options:
         //
+        StringOption assum ("MAIN", "assum",  "If given, then the problem must be solved with the list of assumptions.");
         IntOption    verb   ("MAIN", "verb",   "Verbosity level (0=silent, 1=some, 2=more).", 1, IntRange(0, 2));
         IntOption    cpu_lim("MAIN", "cpu-lim","Limit on CPU time allowed in seconds.\n", INT32_MAX, IntRange(0, INT32_MAX));
         IntOption    mem_lim("MAIN", "mem-lim","Limit on memory usage in megabytes.\n", INT32_MAX, IntRange(0, INT32_MAX));
@@ -88,6 +89,8 @@ int main(int argc, char** argv)
         parseOptions(argc, argv, true);
 
         Solver S;
+        vec<Lit> dummy;
+
         double initial_time = cpuTime();
 
         S.verbosity = verb;
@@ -118,7 +121,7 @@ int main(int argc, char** argv)
                 if (setrlimit(RLIMIT_AS, &rl) == -1)
                     printf("WARNING! Could not set resource limit: Virtual memory.\n");
             } }
-        
+
         if (argc == 1)
             printf("Reading from standard input... Use '--help' for help.\n");
         
@@ -133,23 +136,20 @@ int main(int argc, char** argv)
         parse_DIMACS(in, S);
         gzclose(in);
 
+        gzFile assumFile = NULL;
+        if (assum)
+        {
+        	assumFile = gzopen(assum.getStr(), "rb");
+        	if(assum)
+        	{
+            	printf("|                           Adding assumptions!                               |\n");
+                parse_DIMACS_assumptions(assumFile, S, dummy);
+                gzclose(assumFile);
+        	}
+        }
+
         FILE* res = NULL;
-        gzFile assum = NULL;
-        if (argc >= 4) {
-            res = fopen(argv[2], "wb");
-            assum = gzopen((argv[3] + 1), "rb");
-        } else if (argc == 3) {
-            if (*argv[2] == '-') {
-                assum = gzopen((argv[2] + 1), "rb");
-            } else {
-                res = fopen(argv[2], "wb");
-            }
-        }
-        vec<Lit> dummy;
-        if (!assum) {
-//            parse_DIMACS_assumptions(assum, S, dummy);
-            gzclose(assum);
-        }
+
         if (S.verbosity > 0){
             printf("|  Number of variables:  %12d                                         |\n", S.nVars());
             printf("|  Number of clauses:    %12d                                         |\n", S.nClauses()); }
