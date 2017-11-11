@@ -132,8 +132,24 @@ int main(int argc, char** argv)
         
         parse_DIMACS(in, S);
         gzclose(in);
-        FILE* res = (argc >= 3) ? fopen(argv[2], "wb") : NULL;
-        
+
+        FILE* res = NULL;
+        gzFile assum = NULL;
+        if (argc >= 4) {
+            res = fopen(argv[2], "wb");
+            assum = gzopen((argv[3] + 1), "rb");
+        } else if (argc == 3) {
+            if (*argv[2] == '-') {
+                assum = gzopen((argv[2] + 1), "rb");
+            } else {
+                res = fopen(argv[2], "wb");
+            }
+        }
+        vec<Lit> dummy;
+        if (!assum) {
+//            parse_DIMACS_assumptions(assum, S, dummy);
+            gzclose(assum);
+        }
         if (S.verbosity > 0){
             printf("|  Number of variables:  %12d                                         |\n", S.nVars());
             printf("|  Number of clauses:    %12d                                         |\n", S.nClauses()); }
@@ -159,7 +175,7 @@ int main(int argc, char** argv)
             exit(20);
         }
         
-        vec<Lit> dummy;
+
         lbool ret = S.solveLimited(dummy);
         if (S.verbosity > 0){
             printStats(S);
