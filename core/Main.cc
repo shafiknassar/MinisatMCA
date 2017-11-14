@@ -148,7 +148,7 @@ int main(int argc, char** argv)
         	}
         }
 
-        FILE* res = NULL;
+        FILE* res = (argc >= 3) ? fopen(argv[2], "wb") : NULL;
 
         if (S.verbosity > 0){
             printf("|  Number of variables:  %12d                                         |\n", S.nVars());
@@ -183,13 +183,25 @@ int main(int argc, char** argv)
         printf(ret == l_True ? "SATISFIABLE\n" : ret == l_False ? "UNSATISFIABLE\n" : "INDETERMINATE\n");
         if (res != NULL){
             if (ret == l_True){
-                fprintf(res, "SAT\n");
+                fprintf(res, "SAT\nModel:\n");
                 for (int i = 0; i < S.nVars(); i++)
                     if (S.model[i] != l_Undef)
                         fprintf(res, "%s%s%d", (i==0)?"":" ", (S.model[i]==l_True)?"":"-", i+1);
                 fprintf(res, " 0\n");
-            }else if (ret == l_False)
+            }else if (ret == l_False) {
                 fprintf(res, "UNSAT\n");
+                /* if assumptions were passed and we got UNSAT,
+                 * then we'll print conflicting assumptions */
+                if(assum) {
+                    fprintf(res, "Conflicting Assumptions:\n");
+                	for (int i = 0; i < S.nAssumptions(); ++i) {
+                		fprintf(res, "%s%s%d", (i==0)?"":" ",
+                				sign(S.getAssumption(i))?"-":"",
+                				1+var(S.getAssumption(i)));
+                	}
+                    fprintf(res, " 0\n");
+                }
+            }
             else
                 fprintf(res, "INDET\n");
             fclose(res);
