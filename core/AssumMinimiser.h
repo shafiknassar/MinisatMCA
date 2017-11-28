@@ -15,14 +15,17 @@ namespace Minisat {
 class AssumMinimiser {
     Solver& s;
     vec<Lit> initAssum, currAssum;
-    int numOfCalls;
+
+    //Statistics
+    int nSolveCalls, nSAT, nUNSAT;
 
 public:
-    AssumMinimiser(Solver& s, vec<Lit> assum) : s(s), numOfCalls(0){
+    AssumMinimiser(Solver& s, vec<Lit> assum) : s(s){
         initAssum(assum);
         currAssum(assum);
+        nSolveCalls = nSAT = nUNSAT = 0;
     }
-    a
+
 };
 
 
