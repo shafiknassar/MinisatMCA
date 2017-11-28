@@ -83,8 +83,8 @@ public:
     T&       last  (void)              { return data[sz-1]; }
 
     // Set interface:
-
-    bool contains (const T& t) const   { for (int i=0; i<sz; ++i) if (T == data[i]) return true; return false; }
+    bool contains  (const T& t) const   { for (int i=0; i<sz; ++i) if (t == data[i]) return true; return false; }
+    bool isDisjoint(const vec &v) const { for (int i=0; i<sz; ++i) if (v.contains(data[i])) return false; return true; }
 
     // Vector interface:
     const T& operator [] (int index) const { return data[index]; }
