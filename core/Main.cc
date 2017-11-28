@@ -194,10 +194,10 @@ int main(int argc, char** argv)
                  * then we'll print conflicting assumptions */
                 if(assum) {
                     fprintf(res, "Conflicting Assumptions:\n");
-                	for (int i = 0; i < S.nAssumptions(); ++i) {
+                	for (int i = 0; i < S.conflict.size(); ++i) {
                 		fprintf(res, "%s%s%d", (i==0)?"":" ",
-                				sign(S.getAssumption(i))?"-":"",
-                				1+var(S.getAssumption(i)));
+                				sign(S.conflict[i])?"-":"",
+                				1+var(S.conflict[i]));
                 	}
                     fprintf(res, " 0\n");
                 }
