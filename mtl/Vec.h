@@ -82,6 +82,10 @@ public:
     const T& last  (void) const        { return data[sz-1]; }
     T&       last  (void)              { return data[sz-1]; }
 
+    // Set interface:
+
+    bool contains (const T& t) const   { for (int i=0; i<sz; ++i) if (T == data[i]) return true; return false; }
+
     // Vector interface:
     const T& operator [] (int index) const { return data[index]; }
     T&       operator [] (int index)       { return data[index]; }
