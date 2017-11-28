@@ -54,6 +54,7 @@ public:
     vec()                       : data(NULL) , sz(0)   , cap(0)    { }
     explicit vec(int size)      : data(NULL) , sz(0)   , cap(0)    { growTo(size); }
     vec(int size, const T& pad) : data(NULL) , sz(0)   , cap(0)    { growTo(size, pad); }
+    void copyFrom(const vec<T> v)                                  { clear(true); for (int i=0; i<v.size(); ++i) push(v[i]); }
    ~vec()                                                          { clear(true); }
 
     // Pointer to first element:

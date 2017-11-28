@@ -28,6 +28,7 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #include "utils/Options.h"
 #include "core/Dimacs.h"
 #include "core/Solver.h"
+#include "core/AssumMinimiser.h"
 
 using namespace Minisat;
 
@@ -89,7 +90,7 @@ int main(int argc, char** argv)
         parseOptions(argc, argv, true);
 
         Solver S;
-        vec<Lit> dummy;
+        vec<Lit> userAssum;
 
         double initial_time = cpuTime();
 
@@ -143,7 +144,7 @@ int main(int argc, char** argv)
         	if(assum)
         	{
             	printf("|                           Adding assumptions!                               |\n");
-                parse_DIMACS_assumptions(assumFile, S, dummy);
+                parse_DIMACS_assumptions(assumFile, S, userAssum);
                 gzclose(assumFile);
         	}
         }
@@ -174,9 +175,14 @@ int main(int argc, char** argv)
             printf("UNSATISFIABLE\n");
             exit(20);
         }
-        
+        AssumMinimiser am(S, userAssum);
+        vec<Lit> dummy;
+
+        if (assum)
+            am.iterativeDel();
 
         lbool ret = S.solveLimited(dummy);
+        
         if (S.verbosity > 0){
             printStats(S);
             printf("\n"); }

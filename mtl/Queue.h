@@ -37,6 +37,7 @@ public:
     typedef T Key;
 
     Queue() : buf(1), first(0), end(0) {}
+    Queue(vec<T> v) : buf(1), first(0), end(0) { for (int i=0; i<v.size(); ++i) insert(v[i]); }
 
     void clear (bool dealloc = false) { buf.clear(dealloc); buf.growTo(1); first = end = 0; }
     int  size  () const { return (end >= first) ? end - first : end - first + buf.size(); }
@@ -60,6 +61,7 @@ public:
             tmp.moveTo(buf);
         }
     }
+    vec<T> toVec() const {return buf;}
 };
 
 
