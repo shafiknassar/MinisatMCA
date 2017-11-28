@@ -90,8 +90,6 @@ public:
     const T& operator [] (int index) const { return data[index]; }
     T&       operator [] (int index)       { return data[index]; }
 
-    bool isDisjoint (const vec<T>& other) const { for (int i = 0; i < sz; ++i) if (other.contains.data[i]) return false; return true; }
-
     // Duplicatation (preferred instead):
     void copyTo(vec<T>& copy) const { copy.clear(); copy.growTo(sz); for (int i = 0; i < sz; i++) copy[i] = data[i]; }
     void moveTo(vec<T>& dest) { dest.clear(true); dest.data = data; dest.sz = sz; dest.cap = cap; data = NULL; sz = 0; cap = 0; }
