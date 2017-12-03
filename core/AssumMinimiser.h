@@ -15,41 +15,45 @@ namespace Minisat {
 
 class AssumMinimiser {
     Solver& s;
-    vec<Lit> initAssum;
-    Queue<Lit> currAssum;
+    vec<Lit>     initAssum;
+    Queue<Lit>   currAssum;
     //Statistics
-    int nSolveCalls, nSAT, nUNSAT;
-    lbool isSat;         //specifies if the formula is sat w/o assum
+    int          nSolveCalls, nSAT, nUNSAT;
+    lbool        isSat;         //specifies if the formula is sat w/o assum
 
 public:
-    AssumMinimiser(Solver& s, vec<Lit> assum) : s(s), initAssum(), currAssum(assum) {
+    AssumMinimiser(Solver& s, vec<Lit>& assum) : s(s), initAssum(), currAssum(assum) {
         initAssum.copyFrom(assum);
         nSolveCalls = nSAT = nUNSAT = 0;
 
     }
 
-    vec<Lit> iterativeDel();
-    void     PrintStats() const;
+    void    iterativeDel (vec<Lit> &result);
+    void    PrintStats   () const;
 };
 
-vec<Lit> AssumMinimiser::iterativeDel() {
+
+void AssumMinimiser::iterativeDel(vec<Lit> &result) {
     Lit p = lit_Undef;
     lbool ret;
-
+    result.clear(false);
+    vec<Lit> tmpAssum;
     if (isSat == l_Undef) isSat = s.solveLimited(vec<Lit>());
-    if (isSat == l_False) return vec<Lit>();
+    if (isSat == l_False) return;
 
     /*TODO check that the copy c'tors work as they should initAssum == currAssum */
 
     for (int i = 0; i < initAssum.size(); ++i) {
         p = currAssum.peek();
         currAssum.pop();
-        ret = s.solveLimited(currAssum.toVec());
+        currAssum.toVec(tmpAssum);
+        ret = s.solveLimited(tmpAssum);
         if (ret == l_True)
             currAssum.insert(p);
+        tmpAssum.clear(false);
     }
-
-    return currAssum.toVec();
+    currAssum.toVec(result);
+    return;
 }
 
 

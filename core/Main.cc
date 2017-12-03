@@ -178,10 +178,14 @@ int main(int argc, char** argv)
         AssumMinimiser am(S, userAssum);
         vec<Lit> dummy;
 
-        if (assum)
-            am.iterativeDel();
+        lbool ret = l_False;
 
-        lbool ret = S.solveLimited(dummy);
+        vec<Lit> assumRes;
+        if (assum)
+            am.iterativeDel(assumRes);
+
+        else
+            ret= S.solveLimited(dummy);
         
         if (S.verbosity > 0){
             printStats(S);
@@ -200,10 +204,10 @@ int main(int argc, char** argv)
                  * then we'll print conflicting assumptions */
                 if(assum) {
                     fprintf(res, "Conflicting Assumptions:\n");
-                	for (int i = 0; i < S.conflict.size(); ++i) {
+                	for (int i = 0; i < assumRes.size(); ++i) {
                 		fprintf(res, "%s%s%d", (i==0)?"":" ",
-                				sign(S.conflict[i])?"-":"",
-                				1+var(S.conflict[i]));
+                				sign(assumRes[i])?"-":"",
+                				1+var(assumRes[i]));
                 	}
                     fprintf(res, " 0\n");
                 }
