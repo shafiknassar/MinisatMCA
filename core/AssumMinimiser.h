@@ -8,8 +8,19 @@
 #ifndef CORE_ASSUMMINIMISER_H_
 #define CORE_ASSUMMINIMISER_H_
 
+#define DEBUG 1
+//#undef DEBUG
+
+#ifdef DEBUG
+#define TRACE(s)	std::cout << __FUNCTION__ << ": " << s << std::endl
+#elif
+#define TRACE(s) ;
+#endif
+
+
 #include "core/Solver.h"
 #include "mtl/Queue.h"
+#include <iostream>
 
 namespace Minisat {
 
@@ -22,10 +33,10 @@ class AssumMinimiser {
     lbool        isSat;         //specifies if the formula is sat w/o assum
 
 public:
-    AssumMinimiser(Solver& s, vec<Lit>& assum) : s(s), initAssum(), currAssum(assum) {
+    AssumMinimiser(Solver& s, vec<Lit>& assum) : s(s), initAssum(), currAssum() {
         initAssum.copyFrom(assum);
         nSolveCalls = nSAT = nUNSAT = 0;
-
+        currAssum.fromVec(assum);
     }
 
     void    iterativeDel (vec<Lit> &result);
@@ -45,12 +56,21 @@ void AssumMinimiser::iterativeDel(vec<Lit> &result) {
 
     for (int i = 0; i < initAssum.size(); ++i) {
         p = currAssum.peek();
+        TRACE("Removing " << var(p) << " from currAssum");
         currAssum.pop();
         currAssum.toVec(tmpAssum);
+        TRACE("Begin Solving");
         ret = s.solveLimited(tmpAssum);
+        TRACE("Solving ended");
         if (ret == l_True)
+        {
+        	TRACE(var(p) << " is essential");
+        	TRACE("Added it back to currAssum");
             currAssum.insert(p);
-        tmpAssum.clear(false);
+        } else {
+        	TRACE(var(p) << " isn't essential");
+        }
+        tmpAssum.clear(true);
     }
     currAssum.toVec(result);
     return;

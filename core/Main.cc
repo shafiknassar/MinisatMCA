@@ -141,11 +141,13 @@ int main(int argc, char** argv)
         if (assum)
         {
         	assumFile = gzopen(assum.getStr(), "rb");
-        	if(assum)
+        	if(assumFile)
         	{
             	printf("|                           Adding assumptions!                               |\n");
                 parse_DIMACS_assumptions(assumFile, S, userAssum);
                 gzclose(assumFile);
+        	} else {
+        		printf("ERROR! Could not open file: %s\n", assum.getStr()), exit(1);
         	}
         }
 
@@ -179,17 +181,16 @@ int main(int argc, char** argv)
         vec<Lit> dummy;
 
         lbool ret = l_False;
+        ret= S.solveLimited(userAssum);
 
         vec<Lit> assumRes;
-        if (assum)
+        if (assum && ret == l_False)
             am.iterativeDel(assumRes);
-
-        else
-            ret= S.solveLimited(dummy);
         
         if (S.verbosity > 0){
             printStats(S);
-            printf("\n"); }
+            printf("\n");
+        }
         printf(ret == l_True ? "SATISFIABLE\n" : ret == l_False ? "UNSATISFIABLE\n" : "INDETERMINATE\n");
         if (res != NULL){
             if (ret == l_True){
