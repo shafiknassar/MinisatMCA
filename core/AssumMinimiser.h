@@ -40,10 +40,18 @@ public:
     }
 
     void    iterativeDel (vec<Lit> &result);
+    void
     void    PrintStats   () const;
 };
 
-
+/*
+ * Implementation of the most naive algorithm.
+ * We just go through all of the assumption, trying to remove them 1 by 1.
+ * If the cnf is UNSAT without assumption L, then L is not crucial
+ * to the conflict thus is removed.
+ * If it is SAT, then L was crucial to the conflict and should
+ * remain as part of the minimal set of conflicting assumptions.
+ * */
 void AssumMinimiser::iterativeDel(vec<Lit> &result) {
     Lit p = lit_Undef;
     lbool ret;
@@ -51,8 +59,6 @@ void AssumMinimiser::iterativeDel(vec<Lit> &result) {
     vec<Lit> tmpAssum;
     if (isSat == l_Undef) isSat = s.solveLimited(vec<Lit>());
     if (isSat == l_False) return;
-
-    /*TODO check that the copy c'tors work as they should initAssum == currAssum */
 
     for (int i = 0; i < initAssum.size(); ++i) {
         p = currAssum.peek();
