@@ -178,10 +178,10 @@ int main(int argc, char** argv)
             exit(20);
         }
         AssumMinimiser am(S, userAssum);
-        vec<Lit> dummy;
 
         lbool ret = l_False;
-        ret= S.solveLimited(userAssum);
+
+        ret = am.isSatWithAssum();
 
         vec<Lit> assumRes;
         if (assum && ret == l_False)

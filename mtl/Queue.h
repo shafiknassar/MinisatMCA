@@ -22,16 +22,7 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #define Minisat_Queue_h
 
 #include "mtl/Vec.h"
-#include <iostream>
-
-#define DEBUG 1
-//#undef DEBUG
-
-#ifdef DEBUG
-#define TRACE(s)	std::cout << __FUNCTION__ << ": " << s << std::endl
-#elif
-#define TRACE(s) ;
-#endif
+#include "core/global_defs.h"
 
 namespace Minisat {
 
@@ -47,7 +38,6 @@ public:
     typedef T Key;
 
     Queue() : buf(1), first(0), end(0) {}
-    //Queue(vec<T>& v) : buf(), first(0), end(0) { for (int i=0; i<v.size(); ++i) insert(v[i]); }
 
     void clear (bool dealloc = false) { buf.clear(dealloc); buf.growTo(1); first = end = 0; }
     int  size  () const { return (end >= first) ? end - first : end - first + buf.size(); }
@@ -73,12 +63,13 @@ public:
     }
     void toVec(vec<Lit>& res) const {
     	TRACE("Begin" << std::endl << "first = " << first << std::endl << "end = " << end);
+
     	res.clear(true);
     	for(int i = first; i != end; ++i)
     	{
     		if (i == buf.size()) i = 0;
     		if (i == end) return;
-    		//TRACE("Adding " << var(buf[i]) << " to res" << std::endl << "i = " << i);
+    		TRACE("Adding " << var(buf[i]) << " to res" << std::endl << "i = " << i);
     		res.push(buf[i]);
     	}
     	TRACE("Done");
