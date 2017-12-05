@@ -14,11 +14,8 @@
 #define foreach(i, range)      for (int i = 0; i < range; ++i)
 
 #ifdef DEBUG
-
-
 #define TRACE(s)	std::cout << __FUNCTION__ << "::" <<__LINE__ <<": " << s << std::endl
 #include <iostream>
-
 #else //if not DEBUG
 #define TRACE(s) ;
 #endif

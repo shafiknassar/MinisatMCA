@@ -59,9 +59,17 @@ public:
      */
     lbool    isSatWithAssum();
     lbool    isSatWoAssum  ();
-
+    /*
+     * Implementations of the simple Iterative Deletion
+     * */
     void     iterativeDel  (vec<Lit> &result);
     void     iterativeDel2 (vec<Lit> &result);
+    /*
+     * Implementations of the simple Iterative Insertion
+     * */
+    void     iterativeIns  (vec<Lit> &result);
+
+
     void     PrintStats    () const;
 };
 
@@ -182,6 +190,31 @@ void AssumMinimiser::iterativeDel2(vec<Lit> &result) {
     litBitMapToVec(result);
     return;
 }
+
+/* if CNF is UNSAT without assumptions, 1 literal will be
+ * returned as a set of conflicting assumptions */
+void AssumMinimiser::iterativeIns(vec<Lit> &result) {
+	lbool res;
+    if (isSatWithAssum() == l_True) return;
+    /*
+     * for performance optimization's sake,
+     * we don't call the solver on an empty set of assumptions
+     */
+	foreach (i, initAssum.size()) {
+		TRACE("Adding " << initAssum[i].toString() << " to Assumptions");
+		result.push(initAssum[i]);
+		res = solveWithAssum(result);
+		if (res == l_False)
+		{
+			TRACE("Found Minimal Set Of Conflicting Assumptions!");
+			return;
+		}
+	}
+	assert(0);
+	return;
+}
+
+
 
 /* TODO implement insertion algorithm */
 /* TODO try to minimize the SAT calls */
