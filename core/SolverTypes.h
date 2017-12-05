@@ -29,6 +29,11 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #include "mtl/Vec.h"
 #include "mtl/Map.h"
 #include "mtl/Alloc.h"
+#include "global_defs.h"
+
+#include <string>
+#include <sstream>
+using std::string;
 
 namespace Minisat {
 
@@ -52,6 +57,13 @@ struct Lit {
     bool operator == (Lit p) const { return x == p.x; }
     bool operator != (Lit p) const { return x != p.x; }
     bool operator <  (Lit p) const { return x < p.x;  } // '<' makes p, ~p adjacent in the ordering.
+
+    string toString() const {
+        std::stringstream ss;
+        ss << (x & 1 ? "-" : "") << ((x/2) + 1);
+        return ss.str();
+    }
+
 };
 
 

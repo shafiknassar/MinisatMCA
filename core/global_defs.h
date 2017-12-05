@@ -11,10 +11,12 @@
 #define DEBUG 1
 //#undef DEBUG
 
+#define foreach(i, range)      for (int i = 0; i < range; ++i)
+
 #ifdef DEBUG
 
 
-#define TRACE(s)	std::cout << __FUNCTION__ << ": " << s << std::endl
+#define TRACE(s)	std::cout << __FUNCTION__ << "::" <<__LINE__ <<": " << s << std::endl
 #include <iostream>
 
 #else //if not DEBUG

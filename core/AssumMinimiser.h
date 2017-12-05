@@ -36,8 +36,10 @@ class AssumMinimiser {
      * */
 
     lbool        solveWithAssum(vec<Lit>& assum);
-    void         LitBitMapToVec(vec<Lit>& assum);  // create vector of assumptions based on a bitmap masked on init assum
-    void 		 VecToLitBitMap(const vec<Lit>& assum);
+    // create vector of assumptions based on a bitmap masked on init assum. INVARIANT: the assum is a subset of init assum!
+    void         litBitMapToVec(vec<Lit>& assum);
+    // create bit map of literals based on the vector assum. INVARIANT: same as previous method + assum is created by minisat!
+    void 		 vecToLitBitMap(const vec<Lit>& assum);
 
 public:
 
@@ -66,32 +68,38 @@ public:
 lbool    AssumMinimiser::solveWithAssum(vec<Lit>& assum) {
     lbool ret;
     TRACE("Begin Solving");
-	ret = s.solveLimited(assum);
-	TRACE("Solving ended");
-	if (ret == l_True) {
-	    TRACE("SAT");
-	    nSAT++;
-	} else {
-		TRACE("UNSAT");
-		nUNSAT++;
-	}
-	return ret;
+    ret = s.solveLimited(assum);
+    TRACE("Solving ended");
+    if (ret == l_True) {
+        TRACE("SAT");
+        nSAT++;
+    } else {
+        TRACE("UNSAT");
+        nUNSAT++;
+    }
+    return ret;
 }
 
-void AssumMinimiser::LitBitMapToVec(vec<Lit>& assum) {
-	for (int i = 0; i < initAssum.size(); ++i) {
+void AssumMinimiser::litBitMapToVec(vec<Lit>& assum) {
+	foreach(i, initAssum.size()) {
 		if (litBitMap[initAssum[i]])
 			assum.push(initAssum[i]);
 	}
 }
 
-void AssumMinimiser::VecToLitBitMap(const vec<Lit>& assum) {
-	for (int i = 0; i < initAssum.size(); ++i) {
+void AssumMinimiser::vecToLitBitMap(const vec<Lit>& assum) {
+    Lit negLit;
+    foreach(i, initAssum.size()) {
 		litBitMap[initAssum[i]] = false;
 	}
-	for (int i = 0; i < assum.size(); ++i) {
-		assert(litBitMap.has(assum[i]));
-		litBitMap[assum[i]] = true;
+    foreach(i, assum.size()) {
+        TRACE(assum[i].toString());
+    }
+    foreach(i, assum.size()) {
+        negLit = ~assum[i];     // minisat saves the literal negated, so we negate it back to get the right value.
+	    TRACE("Adding Lit=" << negLit.toString());
+		assert(litBitMap.has(negLit));
+		litBitMap[negLit] = true;
 	}
 }
 
@@ -123,18 +131,18 @@ void AssumMinimiser::iterativeDel(vec<Lit> &result) {
 
     if (isSatWithAssum() == l_True) return;
 
-    for (int i = 0; i < initAssum.size(); ++i) {
+    foreach(i, initAssum.size()) {
         p = currAssum.peek();
-        TRACE("Removing " << var(p) << " from currAssum");
+        TRACE("Removing " << p.toString() << " from currAssum");
         currAssum.pop();
         currAssum.toVec(vecAssum);
         ret = solveWithAssum(vecAssum);
         if (ret == l_True) {
-        	TRACE(var(p) << " is essential");
+        	TRACE(p.toString() << " is essential");
         	TRACE("Added it back to currAssum");
             currAssum.insert(p);
         } else {
-        	TRACE(var(p) << " isn't essential");
+        	TRACE(p.toString() << " isn't essential");
         }
         vecAssum.clear(true);
     }
@@ -150,24 +158,28 @@ void AssumMinimiser::iterativeDel2(vec<Lit> &result) {
 
     if (isSatWithAssum() == l_True) return;
 
-    for (int i = 0; i < initAssum.size(); ++i) {
+    foreach(i, initAssum.size()) {
         if(litBitMap[initAssum[i]] == false) continue;
         litBitMap[initAssum[i]] = false;
-        TRACE("Removing " << var(p) << " from currAssum");
-        LitBitMapToVec(vecAssum);
+        TRACE("Removing " << p.toString() << " from currAssum");
+        litBitMapToVec(vecAssum);
         ret = solveWithAssum(vecAssum);
         if (ret == l_True) {
-        	TRACE(var(p) << " is essential");
+        	TRACE(p.toString() << " is essential");
         	TRACE("Added it back to currAssum");
             litBitMap[initAssum[i]] = true;
         } else {
-        	TRACE(var(p) << " isn't essential" << std::endl
+            /* The bug happens when we have a redundant assumption and we want to remove it,
+             *
+             *
+             */
+        	TRACE(p.toString() << " isn't essential" << std::endl
         			<< "Updating current assumptions");
-        	VecToLitBitMap(s.conflict);
+        	vecToLitBitMap(s.conflict);
         }
         vecAssum.clear(true);
     }
-    LitBitMapToVec(result);
+    litBitMapToVec(result);
     return;
 }
 

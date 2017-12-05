@@ -206,9 +206,7 @@ int main(int argc, char** argv)
                 if(assum) {
                     fprintf(res, "Conflicting Assumptions:\n");
                 	for (int i = 0; i < assumRes.size(); ++i) {
-                		fprintf(res, "%s%s%d", (i==0)?"":" ",
-                				sign(assumRes[i])?"-":"",
-                				1+var(assumRes[i]));
+                		fprintf(res, "%s%s", (i==0)?"":" ", assumRes[i].toString().c_str());
                 	}
                     fprintf(res, " 0\n");
                 }
