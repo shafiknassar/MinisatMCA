@@ -185,7 +185,7 @@ int main(int argc, char** argv)
 
         vec<Lit> assumRes;
         if (assum && ret == l_False)
-            am.iterativeDel(assumRes);
+            am.iterativeDel2(assumRes);
         
         if (S.verbosity > 0){
             printStats(S);
