@@ -3,8 +3,9 @@ DIRECTORY OVERVIEW:
 
 mtl/            Mini Template Library
 utils/          Generic helper code (I/O, Parsing, CPU-time, etc)
-core/           A core version of the solver that is used in minimizing the set of conflicting assumptions
+core/           A core version of the solver
 simp/           An extended solver with simplification capabilities
+mca/            A Conflicting Assumptions Minimizer that uses the core version of MiniSAT
 README
 LICENSE
 
@@ -20,7 +21,7 @@ cp minisat_static <install-dir>/minisat
 ================================================================================
 Using the MCA featue (Minimizing Conflicting Assumptions):
 
-minisat <cnf_file> -assum=<assumptions_file> -alg={1,..,n}
+mca <cnf_file> -assum=<assumptions_file> -alg={1,..,n}
 
 -alg = option that determines which algorithm for MCA to use.
 	Default is alg=1 which uses Iterative Deletion with MiniSAT's built in assumption minimizer.
