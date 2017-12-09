@@ -159,7 +159,6 @@ void AssumMinimiser::iterativeDel(vec<Lit> &result) {
 }
 
 void AssumMinimiser::iterativeDel2(vec<Lit> &result) {
-    Lit p = lit_Undef;
     lbool ret;
     result.clear(false);
     vec<Lit> vecAssum;
@@ -177,10 +176,6 @@ void AssumMinimiser::iterativeDel2(vec<Lit> &result) {
         	TRACE("Added it back to currAssum");
             litBitMap[initAssum[i]] = true;
         } else {
-            /* The bug happens when we have a redundant assumption and we want to remove it,
-             *
-             *
-             */
         	TRACE(p.toString() << " isn't essential" << std::endl
         			<< "Updating current assumptions");
         	vecToLitBitMap(s.conflict);

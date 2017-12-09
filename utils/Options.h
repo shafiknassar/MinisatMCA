@@ -191,6 +191,7 @@ class IntOption : public Option
     operator   int32_t   (void) const { return value; }
     operator   int32_t&  (void)       { return value; }
     IntOption& operator= (int32_t x)  { value = x; return *this; }
+    int getVal() { return value;}
 
     virtual bool parse(const char* str){
         const char* span = str; 

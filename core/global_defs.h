@@ -9,7 +9,7 @@
 #define CORE_GLOBAL_DEFS_H_
 
 #define DEBUG 1
-//#undef DEBUG
+#undef DEBUG
 
 #define foreach(i, range)      for (int i = 0; i < range; ++i)
 

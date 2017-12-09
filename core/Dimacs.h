@@ -76,9 +76,9 @@ static void parse_DIMACS_main(B& in, Solver& S) {
         fprintf(stderr, "WARNING! DIMACS header mismatch: wrong number of clauses.\n");
 }
 
-template<class Solver>
+//template<class Solver>
 static void parse_DIMACS_assumptions(gzFile input_stream,
-		Solver &S,
+		int nVars,
 		vec<Lit> &assumptions) {
 	StreamBuffer in(input_stream);
     int parsed_lit, var;
@@ -101,7 +101,7 @@ static void parse_DIMACS_assumptions(gzFile input_stream,
 		else {
 			parsed_lit = parseInt(in);
 			var = abs(parsed_lit)-1;
-			if (parsed_lit == 0 || var >= S.nVars()) {
+			if (parsed_lit == 0 || var >= nVars) {
 				printf("Illegal Assumptions file. Unexpected literal: %d", parsed_lit), exit(3);
 			}
 			assumptions.push((parsed_lit > 0) ? mkLit(var) : ~mkLit(var));
