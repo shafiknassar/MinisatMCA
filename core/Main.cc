@@ -199,6 +199,7 @@ int main(int argc, char** argv)
             exit(20);
         }
         if (assum && ret == l_False)
+
         {
         	switch (minimizer)
         	{

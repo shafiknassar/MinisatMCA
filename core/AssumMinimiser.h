@@ -191,12 +191,14 @@ void AssumMinimiser::iterativeDel2(vec<Lit> &result) {
 void AssumMinimiser::iterativeIns(vec<Lit> &result) {
 	lbool res;
     if (isSatWithAssum() == l_True) return;
+
     /*
      * for performance optimization's sake,
      * we don't call the solver on an empty set of assumptions
      */
 	foreach (i, initAssum.size()) {
 		TRACE("Adding " << initAssum[i].toString() << " to Assumptions");
+
 		result.push(initAssum[i]);
 		res = solveWithAssum(result);
 		if (res == l_False)
