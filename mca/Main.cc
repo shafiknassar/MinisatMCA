@@ -185,7 +185,7 @@ int main(int argc, char** argv)
             exit(20);
         }
         AssumMinimiser am(S, userAssum);
-        lbool ret = l_False;
+        lbool ret = l_Undef;
         vec<Lit> assumRes;
         ret = am.isSatWithAssum();
         if (ret == l_True)
@@ -222,19 +222,12 @@ int main(int argc, char** argv)
         }
         
         if (S.verbosity > 0){
-            printStats(S);
+            am.PrintStats();
             printf("\n");
         }
         //printf(ret == l_True ? "SATISFIABLE\n" : ret == l_False ? "UNSATISFIABLE\n" : "INDETERMINATE\n");
         if (outfile != NULL){
-            if (ret == l_True){
-                fprintf(outfile, "SAT\nModel:\n");
-                for (int i = 0; i < S.nVars(); i++)
-                    if (S.model[i] != l_Undef)
-                        fprintf(outfile, "%s%s%d", (i==0)?"":" ", (S.model[i]==l_True)?"":"-", i+1);
-                fprintf(outfile, " 0\n");
-            }else if (ret == l_False) {
-                fprintf(outfile, "UNSAT\n");
+            if (ret == l_False) {
                 /* if assumptions were passed and we got UNSAT,
                  * then we'll print conflicting assumptions */
                 if(assum) {
@@ -245,7 +238,7 @@ int main(int argc, char** argv)
                     fprintf(outfile, " 0\n");
                 }
             }
-            else
+            else //ret == l_Undef
                 fprintf(outfile, "INDET\n");
             fclose(outfile);
         }
