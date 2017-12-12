@@ -12,6 +12,14 @@
 #include "mtl/Queue.h"
 #include "mca/global_defs.h"
 
+#define SOLVER_STATS_TABLE \
+	X(starts),             \
+	X(conflicts),          \
+	X(decisions),          \
+	X(rnd_decisions),      \
+	X(propagations)        \
+
+
 namespace Minisat {
 
 class AssumMinimiser {
@@ -29,8 +37,18 @@ class AssumMinimiser {
 
     //Statistics TODO might want to add run times for SAT, UNSAT separately
     int          nSAT, nUNSAT;
-    int          nSolveCalls()         { return nSAT+nUNSAT; }
+    int          nSolveCalls() const         { return nSAT+nUNSAT; }
     lbool        isSatWith, isSatWo;         //specifies if the formula is sat w/o assum
+
+#define X(s) curr_##s
+    uint64_t SOLVER_STATS_TABLE;
+#undef X
+
+#define X(s) total_##s
+    uint64_t SOLVER_STATS_TABLE;
+#undef X
+
+    double curr_cpu_time, total_cpu_time;
     /*
      * Private helper functions
      * */
@@ -41,10 +59,15 @@ class AssumMinimiser {
     // create bit map of literals based on the vector assum. INVARIANT: same as previous method + assum is created by minisat!
     void 		 vecToLitBitMap(const vec<Lit>& assum);
 
+
 public:
 
     AssumMinimiser(Solver& s, vec<Lit>& assum) : s(s), initAssum(), isSatWith(l_Undef),
                                                  isSatWo(l_Undef) {
+#define X(s) curr_##s = 0, total_##s = 0
+    	SOLVER_STATS_TABLE;
+#undef X
+    	curr_cpu_time = total_cpu_time = 0;
         initAssum.copyFrom(assum);
         nSAT = nUNSAT = 0;
         isSatWith = isSatWo = l_Undef;
@@ -69,9 +92,18 @@ public:
      * */
     void     iterativeIns  (vec<Lit> &result);
 
+    void     printCurrentStats();
 
     void     PrintStats    () const;
 };
+
+void     AssumMinimiser::PrintStats    () const {
+	printf("\n\n Total Statistics:\n\n");
+	printSolverStats(s);
+	printf("num of SAT calls      : %d\n", nSAT);
+	printf("num of UNSAT calls    : %d\n", nUNSAT);
+	printf("total calls           : %d\n", nSolveCalls());
+}
 
 lbool    AssumMinimiser::solveWithAssum(vec<Lit>& assum) {
     lbool ret;
@@ -85,6 +117,7 @@ lbool    AssumMinimiser::solveWithAssum(vec<Lit>& assum) {
         TRACE("UNSAT");
         nUNSAT++;
     }
+    printCurrentStats();
     return ret;
 }
 
@@ -114,6 +147,7 @@ void AssumMinimiser::vecToLitBitMap(const vec<Lit>& assum) {
 lbool AssumMinimiser::isSatWithAssum() {
     if (isSatWith == l_Undef) {
         isSatWith = s.solveLimited(initAssum);
+        printCurrentStats();
         if (isSatWith == l_True) isSatWo = l_True;
     }
     //if (isSatWith) TRACE()
@@ -124,6 +158,7 @@ lbool AssumMinimiser::isSatWithAssum() {
 lbool AssumMinimiser::isSatWoAssum() {
     if (isSatWo == l_Undef) {
         isSatWo = s.solveLimited(vec<Lit>());
+        printCurrentStats();
         if (isSatWo == l_False) isSatWith = l_False;
     }
     return isSatWo;
@@ -209,6 +244,31 @@ void AssumMinimiser::iterativeIns(vec<Lit> &result) {
 	}
 	assert(0);
 	return;
+}
+
+void AssumMinimiser::printCurrentStats()
+{
+	uint64_t starts = s.starts,
+			conflicts = s.conflicts,
+			decisions = s.decisions,
+			rnd_decisions = s.rnd_decisions,
+			propagations = s.propagations;
+
+#define X(str)  curr_##str = str - total_##str
+    SOLVER_STATS_TABLE;
+#undef X
+
+#define X(str)   total_##str = str
+    SOLVER_STATS_TABLE;
+#undef X
+
+    curr_cpu_time = cpuTime() - total_cpu_time;
+    total_cpu_time = cpuTime();
+    printf("restarts              : %"PRIu64"\n", curr_starts);
+    printf("conflicts             : %-12"PRIu64"   (%.0f /sec)\n", curr_conflicts   , curr_conflicts   /curr_cpu_time);
+    printf("decisions             : %-12"PRIu64"   (%4.2f %% random) (%.0f /sec)\n", curr_decisions, (float)curr_rnd_decisions*100 / (float)curr_decisions, curr_decisions   /curr_cpu_time);
+    printf("propagations          : %-12"PRIu64"   (%.0f /sec)\n", curr_propagations, curr_propagations/curr_cpu_time);
+    printf("CPU time              : %g s\n", curr_cpu_time);
 }
 
 

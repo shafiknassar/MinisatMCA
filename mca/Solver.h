@@ -367,6 +367,12 @@ inline void        Solver::toDimacs     (const char* file, Lit p, Lit q){ vec<Li
 inline void        Solver::toDimacs     (const char* file, Lit p, Lit q, Lit r){ vec<Lit> as; as.push(p); as.push(q); as.push(r); toDimacs(file, as); }
 inline const Lit&  Solver::getAssumption(int i) { if (i>=assumptions.size() || i<0) return lit_Undef; return assumptions[i]; }
 
+//=================================================================================================
+// Statistics:
+
+void               printSolverStats     (const Solver& solver);
+
+//=================================================================================================
 
 //=================================================================================================
 // Debug etc:
