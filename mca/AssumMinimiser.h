@@ -263,6 +263,7 @@ void AssumMinimiser::printCurrentStats()
 #undef X
 
     curr_cpu_time = cpuTime() - total_cpu_time;
+    total_cpu_time = cpuTime();
     printf("restarts              : %"PRIu64"\n", curr_starts);
     printf("conflicts             : %-12"PRIu64"   (%.0f /sec)\n", curr_conflicts   , curr_conflicts   /curr_cpu_time);
     printf("decisions             : %-12"PRIu64"   (%4.2f %% random) (%.0f /sec)\n", curr_decisions, (float)curr_rnd_decisions*100 / (float)curr_decisions, curr_decisions   /curr_cpu_time);

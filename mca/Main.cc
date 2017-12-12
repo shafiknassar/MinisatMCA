@@ -161,7 +161,7 @@ int main(int argc, char** argv)
         if (S.verbosity > 0){
             printf("|  Number of variables:  %12d                                         |\n", S.nVars());
             printf("|  Number of clauses:    %12d                                         |\n", S.nClauses());
-            printf("|  Number of assumptions:    %12d                                     |\n", userAssum.size());
+            printf("|  Number of assumptions:%12d                                         |\n", userAssum.size());
         }
         
         double parsed_time = cpuTime();
@@ -191,10 +191,10 @@ int main(int argc, char** argv)
         if (ret == l_True)
         {
             if (outfile != NULL) {
-            	fprintf(outfile, "SAT out assumptions\nNothing to Minimize\n");
+            	fprintf(outfile, "SAT with assumptions\nNothing to Minimize\n");
             	fclose(outfile);
             } else {
-            	printf("SAT out assumptions\nNothing to Minimize\n");
+            	printf("SAT with assumptions\nNothing to Minimize\n");
             }
             exit(20);
         }
