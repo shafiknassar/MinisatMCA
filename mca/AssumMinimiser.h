@@ -39,6 +39,12 @@ class AssumMinimiser {
     int          nSAT, nUNSAT;
     int          nSolveCalls() const         { return nSAT+nUNSAT; }
     lbool        isSatWith, isSatWo;         //specifies if the formula is sat w/o assum
+    // TODO statistics for per SAT, UNSAT (cpu_time), initial run.
+    // assumptions progress along the way and in the end.
+
+    int verbosity;
+    // TODO find a way to print how many assumptions were minimized
+    // TODO global timeout
 
 #define X(s) curr_##s
     uint64_t SOLVER_STATS_TABLE;
