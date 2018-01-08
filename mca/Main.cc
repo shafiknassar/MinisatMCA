@@ -26,9 +26,9 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #include "utils/System.h"
 #include "utils/ParseUtils.h"
 #include "utils/Options.h"
-#include "core/Dimacs.h"
-#include "core/Solver.h"
-#include "core/AssumMinimiser.h"
+#include "mca/Dimacs.h"
+#include "mca/Solver.h"
+#include "mca/AssumMinimiser.h"
 
 using namespace Minisat;
 
@@ -161,7 +161,7 @@ int main(int argc, char** argv)
         if (S.verbosity > 0){
             printf("|  Number of variables:  %12d                                         |\n", S.nVars());
             printf("|  Number of clauses:    %12d                                         |\n", S.nClauses());
-            printf("|  Number of assumptions:    %12d                                     |\n", userAssum.size());
+            printf("|  Number of assumptions:%12d                                         |\n", userAssum.size());
         }
         
         double parsed_time = cpuTime();
@@ -185,16 +185,16 @@ int main(int argc, char** argv)
             exit(20);
         }
         AssumMinimiser am(S, userAssum);
-        lbool ret = l_False;
+        lbool ret = l_Undef;
         vec<Lit> assumRes;
         ret = am.isSatWithAssum();
         if (ret == l_True)
         {
             if (outfile != NULL) {
-            	fprintf(outfile, "SAT out assumptions\nNothing to Minimize\n");
+            	fprintf(outfile, "SAT with assumptions\nNothing to Minimize\n");
             	fclose(outfile);
             } else {
-            	printf("SAT out assumptions\nNothing to Minimize\n");
+            	printf("SAT with assumptions\nNothing to Minimize\n");
             }
             exit(20);
         }
@@ -222,19 +222,12 @@ int main(int argc, char** argv)
         }
         
         if (S.verbosity > 0){
-            printStats(S);
+            am.PrintStats();
             printf("\n");
         }
         //printf(ret == l_True ? "SATISFIABLE\n" : ret == l_False ? "UNSATISFIABLE\n" : "INDETERMINATE\n");
         if (outfile != NULL){
-            if (ret == l_True){
-                fprintf(outfile, "SAT\nModel:\n");
-                for (int i = 0; i < S.nVars(); i++)
-                    if (S.model[i] != l_Undef)
-                        fprintf(outfile, "%s%s%d", (i==0)?"":" ", (S.model[i]==l_True)?"":"-", i+1);
-                fprintf(outfile, " 0\n");
-            }else if (ret == l_False) {
-                fprintf(outfile, "UNSAT\n");
+            if (ret == l_False) {
                 /* if assumptions were passed and we got UNSAT,
                  * then we'll print conflicting assumptions */
                 if(assum) {
@@ -245,7 +238,7 @@ int main(int argc, char** argv)
                     fprintf(outfile, " 0\n");
                 }
             }
-            else
+            else //ret == l_Undef
                 fprintf(outfile, "INDET\n");
             fclose(outfile);
         }

@@ -8,9 +8,28 @@
 #ifndef CORE_ASSUMMINIMISER_H_
 #define CORE_ASSUMMINIMISER_H_
 
-#include "core/Solver.h"
+#include "mca/Solver.h"
 #include "mtl/Queue.h"
-#include "core/global_defs.h"
+#include "mca/global_defs.h"
+
+#define INIT_BITMAP(bm)                    \
+	do                                     \
+    {                                      \
+        bm.clear();                        \
+	    foreach (i, initAssum.size())             \
+        {                                  \
+            bm.insert(initAssum[i], true); \
+         }                                 \
+    } while(0)
+
+
+#define SOLVER_STATS_TABLE \
+	X(starts),             \
+	X(conflicts),          \
+	X(decisions),          \
+	X(rnd_decisions),      \
+	X(propagations)        \
+
 
 namespace Minisat {
 
@@ -23,14 +42,32 @@ class AssumMinimiser {
     		return var(k);
     	}
     };
+
+    //can also be used as a Lit Hash Table
     Map<Lit, bool, LitHash> litBitMap;
 
     // TODO: add flags for solver limitations: yield after a certain number of conflicts, time, decisions...
 
     //Statistics TODO might want to add run times for SAT, UNSAT separately
     int          nSAT, nUNSAT;
-    int          nSolveCalls()         { return nSAT+nUNSAT; }
+    int          nSolveCalls() const         { return nSAT+nUNSAT; }
     lbool        isSatWith, isSatWo;         //specifies if the formula is sat w/o assum
+    // TODO statistics for per SAT, UNSAT (cpu_time), initial run.
+    // assumptions progress along the way and in the end.
+
+    int verbosity;
+    // TODO find a way to print how many assumptions were minimized
+    // TODO global timeout
+
+#define X(s) curr_##s
+    uint64_t SOLVER_STATS_TABLE;
+#undef X
+
+#define X(s) total_##s
+    uint64_t SOLVER_STATS_TABLE;
+#undef X
+
+    double curr_cpu_time, total_cpu_time;
     /*
      * Private helper functions
      * */
@@ -41,16 +78,20 @@ class AssumMinimiser {
     // create bit map of literals based on the vector assum. INVARIANT: same as previous method + assum is created by minisat!
     void 		 vecToLitBitMap(const vec<Lit>& assum);
 
+
 public:
 
     AssumMinimiser(Solver& s, vec<Lit>& assum) : s(s), initAssum(), isSatWith(l_Undef),
                                                  isSatWo(l_Undef) {
+#define X(s) curr_##s = 0, total_##s = 0
+    	SOLVER_STATS_TABLE;
+#undef X
+    	curr_cpu_time = total_cpu_time = 0;
         initAssum.copyFrom(assum);
         nSAT = nUNSAT = 0;
         isSatWith = isSatWo = l_Undef;
-        for (int i = 0; i < initAssum.size(); ++i) {
-        	litBitMap.insert(initAssum[i], true);
-        }
+        verbosity = s.verbosity;
+        litBitMap.clear();
     }
 
     /** These two methods checks if the formula is SAT with and without the assumptions
@@ -69,13 +110,26 @@ public:
      * */
     void     iterativeIns  (vec<Lit> &result);
 
+    void     printCurrentStats();
 
     void     PrintStats    () const;
 };
 
+void     AssumMinimiser::PrintStats    () const {
+	printf("\n\n Total Statistics:\n\n");
+	printSolverStats(s);
+	printf("num of SAT calls      : %d\n", nSAT);
+	printf("num of UNSAT calls    : %d\n", nUNSAT);
+	printf("total calls           : %d\n", nSolveCalls());
+}
+
 lbool    AssumMinimiser::solveWithAssum(vec<Lit>& assum) {
     lbool ret;
     TRACE("Begin Solving");
+    if (assum.size() == 0)
+    {
+    	return isSatWoAssum();
+    }
     ret = s.solveLimited(assum);
     TRACE("Solving ended");
     if (ret == l_True) {
@@ -85,6 +139,7 @@ lbool    AssumMinimiser::solveWithAssum(vec<Lit>& assum) {
         TRACE("UNSAT");
         nUNSAT++;
     }
+    printCurrentStats();
     return ret;
 }
 
@@ -114,6 +169,7 @@ void AssumMinimiser::vecToLitBitMap(const vec<Lit>& assum) {
 lbool AssumMinimiser::isSatWithAssum() {
     if (isSatWith == l_Undef) {
         isSatWith = s.solveLimited(initAssum);
+        printCurrentStats();
         if (isSatWith == l_True) isSatWo = l_True;
     }
     //if (isSatWith) TRACE()
@@ -124,6 +180,7 @@ lbool AssumMinimiser::isSatWithAssum() {
 lbool AssumMinimiser::isSatWoAssum() {
     if (isSatWo == l_Undef) {
         isSatWo = s.solveLimited(vec<Lit>());
+        printCurrentStats();
         if (isSatWo == l_False) isSatWith = l_False;
     }
     return isSatWo;
@@ -165,6 +222,8 @@ void AssumMinimiser::iterativeDel2(vec<Lit> &result) {
 
     if (isSatWithAssum() == l_True) return;
 
+    INIT_BITMAP(litBitMap);
+
     foreach(i, initAssum.size()) {
         if(litBitMap[initAssum[i]] == false) continue;
         litBitMap[initAssum[i]] = false;
@@ -186,29 +245,57 @@ void AssumMinimiser::iterativeDel2(vec<Lit> &result) {
     return;
 }
 
-/* if CNF is UNSAT without assumptions, 1 literal will be
- * returned as a set of conflicting assumptions */
+
+
 void AssumMinimiser::iterativeIns(vec<Lit> &result) {
 	lbool res;
+	vec<Lit> tmp;
+	Lit *lit;
     if (isSatWithAssum() == l_True) return;
+    result.clear(true);
+    INIT_BITMAP(litBitMap);
 
-    /*
-     * for performance optimization's sake,
-     * we don't call the solver on an empty set of assumptions
-     */
-	foreach (i, initAssum.size()) {
-		TRACE("Adding " << initAssum[i].toString() << " to Assumptions");
-
-		result.push(initAssum[i]);
-		res = solveWithAssum(result);
-		if (res == l_False)
-		{
-			TRACE("Found Minimal Set Of Conflicting Assumptions!");
-			return;
-		}
-	}
-	assert(0);
+    while (solveWithAssum(result) == l_True)
+    {
+    	tmp.copyFrom(result);
+    	for (lit = litBitMap.startLoop();
+    			lit != NULL; lit = litBitMap.getNext())
+    	{
+    		tmp.push(*lit);
+    		if (solveWithAssum(result) == l_False)
+    		{
+    			litBitMap.remove(*lit);
+    			result.push(*lit);
+    			break;
+    		}
+    	}
+    }
 	return;
+}
+
+void AssumMinimiser::printCurrentStats()
+{
+	uint64_t starts = s.starts,
+			conflicts = s.conflicts,
+			decisions = s.decisions,
+			rnd_decisions = s.rnd_decisions,
+			propagations = s.propagations;
+
+#define X(str)  curr_##str = str - total_##str
+    SOLVER_STATS_TABLE;
+#undef X
+
+#define X(str)   total_##str = str
+    SOLVER_STATS_TABLE;
+#undef X
+
+    curr_cpu_time = cpuTime() - total_cpu_time;
+    total_cpu_time = cpuTime();
+    printf("restarts              : %"PRIu64"\n", curr_starts);
+    printf("conflicts             : %-12"PRIu64"   (%.0f /sec)\n", curr_conflicts   , curr_conflicts   /curr_cpu_time);
+    printf("decisions             : %-12"PRIu64"   (%4.2f %% random) (%.0f /sec)\n", curr_decisions, (float)curr_rnd_decisions*100 / (float)curr_decisions, curr_decisions   /curr_cpu_time);
+    printf("propagations          : %-12"PRIu64"   (%.0f /sec)\n", curr_propagations, curr_propagations/curr_cpu_time);
+    printf("CPU time              : %g s\n", curr_cpu_time);
 }
 
 
