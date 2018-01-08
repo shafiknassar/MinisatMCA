@@ -110,6 +110,8 @@ public:
      * */
     void     iterativeIns  (vec<Lit> &result);
 
+    void     rotationAlg   (vec<Lit> &result);
+
     void     printCurrentStats();
 
     void     PrintStats    () const;
@@ -273,6 +275,8 @@ void AssumMinimiser::iterativeIns(vec<Lit> &result) {
 	return;
 }
 
+
+
 void AssumMinimiser::printCurrentStats()
 {
 	uint64_t starts = s.starts,
@@ -300,7 +304,6 @@ void AssumMinimiser::printCurrentStats()
 
 
 
-/* TODO implement insertion algorithm */
 /* TODO try to minimize the SAT calls */
 
 
