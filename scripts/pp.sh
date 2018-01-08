@@ -38,8 +38,8 @@ cat $1 | while read -a line; do
         if [[ $init == 1 ]]; then echo "only one initialization line allowed, please fix!"; exit 2; fi
         num_of_vars=${line[2]}
         num_of_clauses=${line[3]}
-	echo "p cnf $num_of_vars $num_of_clauses" >> $cnf_out
-	echo "p assum $num_of_clauses" >> $assum_out
+	echo "p cnf $((num_of_vars+num_of_clauses)) $num_of_clauses" >> $cnf_out
+	echo "p assumptions $num_of_clauses" >> $assum_out
         init=1
         continue;
     fi
