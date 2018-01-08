@@ -195,6 +195,8 @@ public:
 
     Lit          subsumes    (const Clause& other) const;
     void         strengthen  (Lit p);
+
+    bool        doesContain(Lit p) const    { for (int i=0; i<size(); ++i) if (data[i].lit == p) return true; return false; }
 };
 
 
@@ -413,7 +415,59 @@ inline void Clause::strengthen(Lit p)
     calcAbstraction();
 }
 
+
+
 //=================================================================================================
+/***************************************/
+/* Types and Logic used by MCA */
+/***************************************/
+
+class LitHash {
+public:
+	uint32_t operator()(const Lit& k) const {
+		return var(k);
+	}
+};
+
+typedef Map<Lit, bool, LitHash> LitBitMap;
+
+
+/* Time Complexity: O( c * l * a )
+ * 		when c = |clauses|, l=max{literals per clause}, a=|assums|
+ */
+void getMutualAssumptions(vec<Clause>& clauses, LitBitMap* assums)
+{
+	Clause& c;
+	Lit *l;
+	LitBitMap *new_assums = new LitBitMap,
+			*tmp_assums = NULL;
+
+	for (int ci = 0; ci < clauses.size(); ++ci)
+	{
+		if (assums->size() == 0) return;
+
+		c = clauses[ci];
+		for (l = assums->startLoop(); l != NULL; l = assums->getNext())
+		{
+			if (c.doesContain(*l) == false)
+			{
+				assums[*l] = false;
+			}
+		}
+		new_assums->clear();
+		for (l = assums->startLoop(); l != NULL; l = assums->getNext())
+		{
+			if (assums[*l] == true)
+			{
+				new_assums->insert(*l, true);
+			}
+		}
+		tmp_assums = assums;
+		assums = new_assums;
+		new_assums = tmp_assums;
+	}
+}
+
 }
 
 #endif
