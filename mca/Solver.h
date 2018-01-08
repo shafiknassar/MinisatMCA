@@ -52,8 +52,8 @@ public:
     bool    addClause (Lit p, Lit q, Lit r);                    // Add a ternary clause to the solver. 
     bool    addClause_(      vec<Lit>& ps);                     // Add a clause to the solver without making superflous internal copy. Will
                                                                 // change the passed vector 'ps'.
-    void    getClausesContaining(Lit p, vec<Clause>& res);      // Stores all clauses containing p
-                                                                // in res.
+    void    getClausesContaining     (Lit p, vec<Clause>& res);      // Stores all clauses containing p in res.
+    void    getWeakClausesContaining (Lit p, vec<Clause>& res);
 
     // Solving:
     //
@@ -321,15 +321,7 @@ inline bool     Solver::addClause       (Lit p, Lit q)          { add_tmp.clear(
 inline bool     Solver::addClause       (Lit p, Lit q, Lit r)   { add_tmp.clear(); add_tmp.push(p); add_tmp.push(q); add_tmp.push(r); return addClause_(add_tmp); }
 inline bool     Solver::locked          (const Clause& c) const { return value(c[0]) == l_True && reason(var(c[0])) != CRef_Undef && ca.lea(reason(var(c[0]))) == &c; }
 inline void     Solver::newDecisionLevel()                      { trail_lim.push(trail.size()); }
-inline void     Solver::getClausesContaining(Lit p, vec<Clause>& res) {
-    ClauseAllocator allocator();
-    foreach(i, this->clauses.size()) {
-        Clause currClause = allocator[clauses[i]]
-        if (currClause.doesContain(p)) {
-            res.push(currClause);
-        }
-    }
-}
+
 inline int      Solver::decisionLevel ()      const   { return trail_lim.size(); }
 inline uint32_t Solver::abstractLevel (Var x) const   { return 1 << (level(x) & 31); }
 inline lbool    Solver::value         (Var x) const   { return assigns[x]; }
