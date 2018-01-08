@@ -12,6 +12,17 @@
 #include "mtl/Queue.h"
 #include "mca/global_defs.h"
 
+#define INIT_BITMAP(bm)                    \
+	do                                     \
+    {                                      \
+        bm.clear();                        \
+	    foreach (i, initAssum.size())             \
+        {                                  \
+            bm.insert(initAssum[i], true); \
+         }                                 \
+    } while(0)
+
+
 #define SOLVER_STATS_TABLE \
 	X(starts),             \
 	X(conflicts),          \
@@ -31,6 +42,8 @@ class AssumMinimiser {
     		return var(k);
     	}
     };
+
+    //can also be used as a Lit Hash Table
     Map<Lit, bool, LitHash> litBitMap;
 
     // TODO: add flags for solver limitations: yield after a certain number of conflicts, time, decisions...
@@ -77,9 +90,8 @@ public:
         initAssum.copyFrom(assum);
         nSAT = nUNSAT = 0;
         isSatWith = isSatWo = l_Undef;
-        for (int i = 0; i < initAssum.size(); ++i) {
-        	litBitMap.insert(initAssum[i], true);
-        }
+        verbosity = s.verbosity;
+        litBitMap.clear();
     }
 
     /** These two methods checks if the formula is SAT with and without the assumptions
@@ -114,6 +126,10 @@ void     AssumMinimiser::PrintStats    () const {
 lbool    AssumMinimiser::solveWithAssum(vec<Lit>& assum) {
     lbool ret;
     TRACE("Begin Solving");
+    if (assum.size() == 0)
+    {
+    	return isSatWoAssum();
+    }
     ret = s.solveLimited(assum);
     TRACE("Solving ended");
     if (ret == l_True) {
@@ -206,6 +222,8 @@ void AssumMinimiser::iterativeDel2(vec<Lit> &result) {
 
     if (isSatWithAssum() == l_True) return;
 
+    INIT_BITMAP(litBitMap);
+
     foreach(i, initAssum.size()) {
         if(litBitMap[initAssum[i]] == false) continue;
         litBitMap[initAssum[i]] = false;
@@ -227,28 +245,31 @@ void AssumMinimiser::iterativeDel2(vec<Lit> &result) {
     return;
 }
 
-/* if CNF is UNSAT without assumptions, 1 literal will be
- * returned as a set of conflicting assumptions */
+
+
 void AssumMinimiser::iterativeIns(vec<Lit> &result) {
 	lbool res;
+	vec<Lit> tmp;
+	Lit *lit;
     if (isSatWithAssum() == l_True) return;
+    result.clear(true);
+    INIT_BITMAP(litBitMap);
 
-    /*
-     * for performance optimization's sake,
-     * we don't call the solver on an empty set of assumptions
-     */
-	foreach (i, initAssum.size()) {
-		TRACE("Adding " << initAssum[i].toString() << " to Assumptions");
-
-		result.push(initAssum[i]);
-		res = solveWithAssum(result);
-		if (res == l_False)
-		{
-			TRACE("Found Minimal Set Of Conflicting Assumptions!");
-			return;
-		}
-	}
-	assert(0);
+    while (solveWithAssum(result) == l_True)
+    {
+    	tmp.copyFrom(result);
+    	for (lit = litBitMap.startLoop();
+    			lit != NULL; lit = litBitMap.getNext())
+    	{
+    		tmp.push(*lit);
+    		if (solveWithAssum(result) == l_False)
+    		{
+    			litBitMap.remove(*lit);
+    			result.push(*lit);
+    			break;
+    		}
+    	}
+    }
 	return;
 }
 
