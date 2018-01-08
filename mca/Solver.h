@@ -54,6 +54,7 @@ public:
                                                                 // change the passed vector 'ps'.
     void    getClausesContaining(Lit p, vec<Clause>& res);      // Stores all clauses containing p
                                                                 // in res.
+    bool    checkIfModel(vec<lbool>& inAssigns);                    // checks of the given vector of literal satisfies the CNF
 
     // Solving:
     //

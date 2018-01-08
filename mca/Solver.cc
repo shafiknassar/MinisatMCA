@@ -935,3 +935,27 @@ void Minisat::printSolverStats(Solver const& solver)
     if (mem_used != 0) printf("Memory used           : %.2f MB\n", mem_used);
     printf("CPU time              : %g s\n", cpu_time);
 }
+
+/*****************************************************************************************/
+/* functions for MCA */
+/*****************************************************************************************/
+
+bool    Solver::checkIfModel(vec<lbool>& inAssign)
+{
+	assert (inAssign == nVars());
+	foreach(i, clauses.size())
+	{
+		Clause& c = ca[clauses[i]];
+		// checking if c is satisfied under the given assign
+		bool satisfied = false;
+		foreach(j, c.size())
+		{
+			if (sign(c[j]) ^ inAssign[var(c[j])]) {
+				satisfied = true;
+				break;
+			}
+		}
+		if (!satisfied) return false;
+	}
+	return true;
+}
