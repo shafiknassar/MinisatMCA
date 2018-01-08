@@ -36,15 +36,7 @@ namespace Minisat {
 class AssumMinimiser {
     Solver& s;
     vec<Lit>     initAssum; // Must not be edited after c'tor !!!
-    class LitHash {
-    public:
-    	uint32_t operator()(const Lit& k) const {
-    		return var(k);
-    	}
-    };
-
-    //can also be used as a Lit Hash Table
-    Map<Lit, bool, LitHash> litBitMap;
+    LitBitMap litBitMap;
 
     // TODO: add flags for solver limitations: yield after a certain number of conflicts, time, decisions...
 
@@ -115,6 +107,8 @@ public:
     void     printCurrentStats();
 
     void     PrintStats    () const;
+
+    lbool   tryToRotate   ();
 };
 
 void     AssumMinimiser::PrintStats    () const {
@@ -247,6 +241,37 @@ void AssumMinimiser::iterativeDel2(vec<Lit> &result) {
     return;
 }
 
+
+void AssumMinimiser::rotationAlg(vec<Lit> &result) {
+    lbool ret;
+    result.clear(false);
+    vec<Lit> vecAssum;
+
+    if (isSatWithAssum() == l_True) return;
+
+    INIT_BITMAP(litBitMap);
+
+    foreach(i, initAssum.size()) {
+        if(litBitMap[initAssum[i]] == false) continue;
+        litBitMap[initAssum[i]] = false;
+        TRACE("Removing " << p.toString() << " from currAssum");
+        litBitMapToVec(vecAssum);
+        ret = solveWithAssum(vecAssum);
+        if (ret == l_True) {
+        	TRACE(p.toString() << " is essential");
+        	TRACE("Added it back to currAssum");
+            litBitMap[initAssum[i]] = true;
+        	// tryToRotate
+        } else {
+        	TRACE(p.toString() << " isn't essential" << std::endl
+        			<< "Updating current assumptions");
+        	vecToLitBitMap(s.conflict);
+        }
+        vecAssum.clear(true);
+    }
+    litBitMapToVec(result);
+    return;
+}
 
 
 void AssumMinimiser::iterativeIns(vec<Lit> &result) {
