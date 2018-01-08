@@ -909,7 +909,6 @@ void Solver::relocAll(ClauseAllocator& to)
         ca.reloc(clauses[i], to);
 }
 
-
 void Solver::garbageCollect()
 {
     // Initialize the next region to a size corresponding to the estimated utilization degree. This
@@ -934,4 +933,40 @@ void Minisat::printSolverStats(Solver const& solver)
     printf("conflict literals     : %-12"PRIu64"   (%4.2f %% deleted)\n", solver.tot_literals, (solver.max_literals - solver.tot_literals)*100 / (double)solver.max_literals);
     if (mem_used != 0) printf("Memory used           : %.2f MB\n", mem_used);
     printf("CPU time              : %g s\n", cpu_time);
+}
+
+/**
+ * These are inner functions for the solver, that is used by the AssumMinimiser
+ */
+
+void Solver::getClausesContaining(Lit p, vec<Clause>& res) {
+    ClauseAllocator allocator();
+    foreach(i, this->clauses.size()) {
+        Clause currClause = allocator[clauses[i]];
+        if (currClause.doesContain(p)) {
+            res.push(currClause);
+        }
+    }
+}
+
+void Solver::getClausesContaining(Lit p, vec<Clause>& res) {
+    ClauseAllocator allocator();
+    foreach(i, this->clauses.size()) {
+        Clause currClause = allocator[clauses[i]];
+        if (currClause.doesContain(p)) {
+            res.push(currClause);
+        }
+    }
+}
+
+void Solver::getWeakClausesContaining (Lit p, vec<Clause>& res) {
+    ClauseAllocator allocator();
+    this->assigns[var(p)] = ~this->assigns[var(p)];
+    foreach(i, this->clauses.size()) {
+        Clause currClause = allocator[clauses[i]];
+        if (currClause.doesContain(p) && this->satisfied(currClause)) {
+            res.push(currClause);
+        }
+    }
+    this->assigns[var(p)] = ~this->assigns[var(p)];
 }

@@ -122,9 +122,11 @@ public:
 
     friend int   toInt  (lbool l);
     friend lbool toLbool(int   v);
+    friend lbool operator ~ (lbool);
 };
 inline int   toInt  (lbool l) { return l.value; }
 inline lbool toLbool(int   v) { return lbool((uint8_t)v);  }
+lbool operator ~(lbool l)     { return lbool((uint8_t)(l.value^(uint8_t)true)); }    // Inspired by the xor operator :)
 
 //=================================================================================================
 // Clause -- a simple class for representing a clause:
