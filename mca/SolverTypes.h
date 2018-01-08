@@ -434,6 +434,10 @@ typedef Map<Lit, bool, LitHash> LitBitMap;
 
 /* Time Complexity: O( c * l * a )
  * 		when c = |clauses|, l=max{literals per clause}, a=|assums|
+ *
+ * 	Parameters:
+ * 		clauses - list of clauses.
+ * 		assums - the set of assumptions, serves as input and output.
  */
 void getMutualAssumptions(vec<Clause>& clauses, LitBitMap* assums)
 {
@@ -444,7 +448,7 @@ void getMutualAssumptions(vec<Clause>& clauses, LitBitMap* assums)
 
 	for (int ci = 0; ci < clauses.size(); ++ci)
 	{
-		if (assums->size() == 0) return;
+		if (assums->size() == 0) goto CLEANUP;
 
 		c = clauses[ci];
 		for (l = assums->startLoop(); l != NULL; l = assums->getNext())
@@ -466,6 +470,8 @@ void getMutualAssumptions(vec<Clause>& clauses, LitBitMap* assums)
 		assums = new_assums;
 		new_assums = tmp_assums;
 	}
+CLEANUP:
+	delete new_assums;
 }
 
 }
