@@ -128,7 +128,7 @@ public:
 
     void     PrintStats    () const;
 
-    lbool   tryToRotate   (vec<lbool>& model, Lit assum, Lit& newVital);
+    bool   tryToRotate   (vec<lbool>& model, Lit assum, Lit& newVital);
 };
 
 void     AssumMinimiser::PrintStats    () const {
@@ -241,6 +241,7 @@ void AssumMinimiser::iterativeDel2(vec<Lit> &result) {
     INIT_ASSUM_BITMAP(litBitMap);
 
     foreach(i, initAssum.size()) {
+    	Lit& p = initAssum[i];
         if(litBitMap[initAssum[i]] == false) continue;
         litBitMap[initAssum[i]] = false;
         TRACE("Removing " << p.toString() << " from currAssum");
@@ -266,22 +267,30 @@ void AssumMinimiser::rotationAlg(vec<Lit> &result) {
     lbool ret;
     result.clear(false);
     vec<Lit> vecAssum;
+    Lit extraVital;
+    vec<lbool>* curr_model;
+    LitBitMap vitalsCaughtByRotation;
 
     if (isSatWithAssum() == l_True) return;
 
     INIT_ASSUM_BITMAP(litBitMap);
 
     foreach(i, initAssum.size()) {
-        if(litBitMap[initAssum[i]] == false) continue;
-        litBitMap[initAssum[i]] = false;
+    	Lit& p = initAssum[i];
+        if(litBitMap[p] == false || vitalsCaughtByRotation.has(p)) continue;
+        litBitMap[p] = false;
         TRACE("Removing " << p.toString() << " from currAssum");
         litBitMapToVec(vecAssum);
         ret = solveWithAssum(vecAssum);
         if (ret == l_True) {
         	TRACE(p.toString() << " is essential");
         	TRACE("Added it back to currAssum");
-            litBitMap[initAssum[i]] = true;
-        	// tryToRotate
+            litBitMap[p] = true;
+            curr_model = s.getModelCopy();
+        	if (tryToRotate(*curr_model, p, extraVital) && !vitalsCaughtByRotation.has(extraVital))
+        	{
+        		vitalsCaughtByRotation.insert(extraVital, true);
+        	}
         } else {
         	TRACE(p.toString() << " isn't essential" << std::endl
         			<< "Updating current assumptions");
@@ -332,7 +341,7 @@ void flipVarInModel(vec<lbool>& model, int var)
  *    * assum - an assumption that does NOT hold under the model
  *    * newVital - output:
  * */
-lbool   AssumMinimiser::tryToRotate   (vec<lbool>& model, Lit assum, Lit& newVital)
+bool   AssumMinimiser::tryToRotate   (vec<lbool>& model, Lit assum, Lit& newVital)
 {
 	vec<Clause> clausesWithAssum, clausesWithLit;
 	s.getClausesContaining(assum, clausesWithAssum);
@@ -342,7 +351,7 @@ lbool   AssumMinimiser::tryToRotate   (vec<lbool>& model, Lit assum, Lit& newVit
 
 	getMutualLiterals(clausesWithAssum, &bm);
 	if (bm.size() == 0)
-		return l_False;
+		return false;
 	flipVarInModel(model, var(assum));
 	MAP_FOREACH(l, bm)
 	{

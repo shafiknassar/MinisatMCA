@@ -144,6 +144,15 @@ public:
     // Methods for communicating assumptions
     const Lit&      getAssumption(int i); //returns lit_Undef if i is out of range
     inline int      nAssumptions() { return assumptions.size(); }
+    // PRECONDITION: only valid if SAT
+    vec<lbool>*     getModelCopy() {
+    	vec<lbool> *res = new vec<lbool>(nVars());
+    	foreach(i, model.size())
+    	{
+    		(*res)[i] = model[i];
+    	}
+    	return res;
+    }
 
 protected:
 
@@ -322,11 +331,11 @@ inline bool     Solver::addClause       (Lit p, Lit q)          { add_tmp.clear(
 inline bool     Solver::addClause       (Lit p, Lit q, Lit r)   { add_tmp.clear(); add_tmp.push(p); add_tmp.push(q); add_tmp.push(r); return addClause_(add_tmp); }
 inline bool     Solver::locked          (const Clause& c) const { return value(c[0]) == l_True && reason(var(c[0])) != CRef_Undef && ca.lea(reason(var(c[0]))) == &c; }
 inline void     Solver::newDecisionLevel()                      { trail_lim.push(trail.size()); }
+
 inline void     Solver::getClausesContaining(Lit p, vec<Clause>& res) {
-    ClauseAllocator allocator();
     foreach(i, this->clauses.size()) {
-        Clause currClause = allocator[clauses[i]]
-        if (currClause.doesContain(p)) {
+        Clause currClause = ca[clauses[i]];
+        if (currClause.contains(p)) {
             res.push(currClause);
         }
     }

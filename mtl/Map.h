@@ -131,6 +131,19 @@ class Map {
         return *res;
     }
 
+    bool setIfContains(const K& k, const D& d)
+    {
+    	//D* res = NULL;
+    	vec<Pair>& ps  = table[index(k)];
+    	for (int i = 0; i < ps.size(); i++)
+    		if (equals(ps[i].key, k))
+    		{
+    			ps[i].data = d;
+    			return true;
+    		}
+    	return false;
+    }
+
     // PRECONDITION: the key must *NOT* exist in the map.
     void insert (const K& k, const D& d) { if (checkCap(sz+1)) rehash(); _insert(k, d); sz++; }
     bool peek   (const K& k, D& d) const {
