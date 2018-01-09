@@ -909,7 +909,6 @@ void Solver::relocAll(ClauseAllocator& to)
         ca.reloc(clauses[i], to);
 }
 
-
 void Solver::garbageCollect()
 {
     // Initialize the next region to a size corresponding to the estimated utilization degree. This
@@ -936,6 +935,7 @@ void Minisat::printSolverStats(Solver const& solver)
     printf("CPU time              : %g s\n", cpu_time);
 }
 
+
 /*****************************************************************************************/
 /* functions for MCA */
 /*****************************************************************************************/
@@ -958,4 +958,31 @@ bool    Solver::checkIfModel(vec<lbool>& inAssign)
 		if (!satisfied) return false;
 	}
 	return true;
+}
+
+/**
+ * These are inner functions for the solver, that is used by the AssumMinimiser
+ */
+
+void Solver::getClausesContaining(Lit p, vec<Clause>& res) {
+    ClauseAllocator allocator();
+    foreach(i, this->clauses.size()) {
+        Clause currClause = allocator[clauses[i]];
+        if (currClause.contains(p)) {
+            res.push(currClause);
+        }
+    }
+}
+
+
+void Solver::getWeakClausesContaining (Lit p, vec<Clause>& res) {
+    ClauseAllocator allocator();
+    this->assigns[var(p)] = ~this->assigns[var(p)];
+    foreach(i, this->clauses.size()) {
+        Clause currClause = allocator[clauses[i]];
+        if (currClause.contains(p) && this->satisfied(currClause)) {
+            res.push(currClause);
+        }
+    }
+    this->assigns[var(p)] = ~this->assigns[var(p)];
 }

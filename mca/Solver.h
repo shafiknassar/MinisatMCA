@@ -52,8 +52,8 @@ public:
     bool    addClause (Lit p, Lit q, Lit r);                    // Add a ternary clause to the solver. 
     bool    addClause_(      vec<Lit>& ps);                     // Add a clause to the solver without making superflous internal copy. Will
                                                                 // change the passed vector 'ps'.
-    void    getClausesContaining(Lit p, vec<Clause>& res);      // Stores all clauses containing p
-                                                                // in res.
+    void    getWeakClausesContaining (Lit p, vec<Clause>& res);
+    void    getClausesContaining     (Lit p, vec<Clause>& res);      // Stores all clauses containing p in res.
     bool    checkIfModel(vec<lbool>& inAssigns);                    // checks of the given vector of literal satisfies the CNF
 
     // Solving:
@@ -340,6 +340,7 @@ inline void     Solver::getClausesContaining(Lit p, vec<Clause>& res) {
         }
     }
 }
+
 inline int      Solver::decisionLevel ()      const   { return trail_lim.size(); }
 inline uint32_t Solver::abstractLevel (Var x) const   { return 1 << (level(x) & 31); }
 inline lbool    Solver::value         (Var x) const   { return assigns[x]; }
