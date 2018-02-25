@@ -47,6 +47,73 @@
 
 namespace Minisat {
 
+/***************************************/
+/* Types and Logic used by AssumMinimiser */
+/***************************************/
+
+class LitHash {
+public:
+	uint32_t operator()(const Lit& k) const {
+		return var(k);
+	}
+};
+
+typedef Map<Lit, bool, LitHash> LitBitMap;
+
+
+/* Time Complexity: O( c * l * a )
+ * 		when c = |clauses|, l=max{literals per clause}, a=|assums|
+ *
+ * 	Parameters:
+ * 		clauses - list of clauses.
+ * 		assums - the set of assumptions, serves as input and output.
+ */
+void getMutualAssumptions(vec<Clause>& clauses, LitBitMap* assums)
+{
+	Lit *l;
+	LitBitMap *new_assums = new LitBitMap,
+			*tmp_assums = NULL;
+
+	for (int ci = 0; ci < clauses.size(); ++ci)
+	{
+		if (assums->size() == 0) goto CLEANUP;
+
+		Clause& c = clauses[ci];
+		for (l = assums->startLoop(); l != NULL; l = assums->getNext())
+		{
+			if (c.contains(*l) == false)
+			{
+				(*assums)[*l] = false;
+			}
+		}
+		new_assums->clear();
+		for (l = assums->startLoop(); l != NULL; l = assums->getNext())
+		{
+			if ((*assums)[*l] == true)
+			{
+				new_assums->insert(*l, true);
+			}
+		}
+		tmp_assums = assums;
+		assums = new_assums;
+		new_assums = tmp_assums;
+	}
+CLEANUP:
+	delete new_assums;
+}
+
+
+void getMutualLiterals(vec<Clause>& clauses, LitBitMap* out)
+{
+	out->clear();
+	if (clauses.size() == 0) return;
+	for (int li = 0; li < clauses.last().size(); ++li)
+	{
+		out->insert(clauses.last()[li], true);
+	}
+	getMutualAssumptions(clauses, out);
+}
+
 class AssumMinimiser {
     Solver& s;
     vec<Lit>     initAssum; // Must not be edited after c'tor !!!
@@ -128,7 +195,7 @@ public:
 
     void     PrintStats    () const;
 
-    lbool   tryToRotate   (vec<lbool>& model, Lit assum, Lit& newVital);
+    bool   tryToRotate   (vec<lbool>& model, Lit assum, Lit& newVital);
 };
 
 void     AssumMinimiser::PrintStats    () const {
@@ -332,7 +399,7 @@ void flipVarInModel(vec<lbool>& model, int var)
  *    * assum - an assumption that does NOT hold under the model
  *    * newVital - output:
  * */
-lbool   AssumMinimiser::tryToRotate   (vec<lbool>& model, Lit assum, Lit& newVital)
+bool   AssumMinimiser::tryToRotate   (vec<lbool>& model, Lit assum, Lit& newVital)
 {
 	vec<Clause> clausesWithAssum, clausesWithLit;
 	s.getClausesContaining(assum, clausesWithAssum);
@@ -342,7 +409,7 @@ lbool   AssumMinimiser::tryToRotate   (vec<lbool>& model, Lit assum, Lit& newVit
 
 	getMutualLiterals(clausesWithAssum, &bm);
 	if (bm.size() == 0)
-		return l_False;
+		return false;
 	flipVarInModel(model, var(assum));
 	MAP_FOREACH(l, bm)
 	{

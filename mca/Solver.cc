@@ -942,7 +942,7 @@ void Minisat::printSolverStats(Solver const& solver)
 
 bool    Solver::checkIfModel(vec<lbool>& inAssign)
 {
-	assert (inAssign == nVars());
+	assert (inAssign.size() == nVars());
 	foreach(i, clauses.size())
 	{
 		Clause& c = ca[clauses[i]];
@@ -950,7 +950,7 @@ bool    Solver::checkIfModel(vec<lbool>& inAssign)
 		bool satisfied = false;
 		foreach(j, c.size())
 		{
-			if (sign(c[j]) ^ inAssign[var(c[j])]) {
+			if (sign(c[j]) != (inAssign[var(c[j])] == l_True)) {
 				satisfied = true;
 				break;
 			}
