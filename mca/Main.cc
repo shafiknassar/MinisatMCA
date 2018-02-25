@@ -87,7 +87,7 @@ int main(int argc, char** argv)
         IntOption    cpu_lim("MAIN", "cpu-lim","Limit on CPU time allowed in seconds.\n", INT32_MAX, IntRange(0, INT32_MAX));
         IntOption    mem_lim("MAIN", "mem-lim","Limit on memory usage in megabytes.\n", INT32_MAX, IntRange(0, INT32_MAX));
         IntOption    minimizer
-		("MAIN", "alg", "Choose which minimization algorithm to use.\n0=Iterative Deletion, 1=Improved Iterative Deletion, 2=Iterative Insertion", 1, IntRange(0,2));
+		("MAIN", "alg", "Choose which minimization algorithm to use.\n1=Iterative Deletion, 2=Improved Iterative Deletion, 3=Iterative Insertion, 4=Rotation Algorithm", 2, IntRange(1,4));
         
         parseOptions(argc, argv, true);
 
@@ -203,19 +203,19 @@ int main(int argc, char** argv)
         {
         	switch (minimizer)
         	{
-        	case 0:
+        	case 1:
         		printf("Using Iterative Deletion Algorithm for minimizing the conflicting set of assumptions\n");
         		am.iterativeDel(assumRes);
         		break;
-        	case 1:
+        	case 2:
         		printf("Using Iterative Deletion Algorithm with MiniSAT's minimizer for minimizing the conflicting set of assumptions\n");
         		am.iterativeDel2(assumRes);
         		break;
-        	case 2:
+        	case 3:
         		printf("Using Iterative Insertion Algorithm for minimizing the conflicting set of assumptions\n");
         		am.iterativeIns(assumRes);
         		break;
-            case 3:
+            case 4:
                 printf("Using Rotation Algorithm for minimizing the conflicting set of assumptions\n");
                 am.rotationAlg(assumRes);
                 break;
