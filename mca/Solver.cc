@@ -942,7 +942,7 @@ void Minisat::printSolverStats(Solver const& solver)
 
 bool    Solver::checkIfModel(vec<lbool>& inAssign)
 {
-	assert (inAssign == nVars());
+	assert (inAssign.size() == nVars());
 	foreach(i, clauses.size())
 	{
 		Clause& c = ca[clauses[i]];
@@ -950,7 +950,7 @@ bool    Solver::checkIfModel(vec<lbool>& inAssign)
 		bool satisfied = false;
 		foreach(j, c.size())
 		{
-			if (sign(c[j]) ^ inAssign[var(c[j])]) {
+			if (sign(c[j]) != (inAssign[var(c[j])] == l_True)) {
 				satisfied = true;
 				break;
 			}
@@ -965,9 +965,8 @@ bool    Solver::checkIfModel(vec<lbool>& inAssign)
  */
 
 void Solver::getClausesContaining(Lit p, vec<Clause>& res) {
-    ClauseAllocator allocator();
     foreach(i, this->clauses.size()) {
-        Clause currClause = allocator[clauses[i]];
+        Clause currClause = ca[clauses[i]];
         if (currClause.contains(p)) {
             res.push(currClause);
         }
@@ -976,10 +975,9 @@ void Solver::getClausesContaining(Lit p, vec<Clause>& res) {
 
 
 void Solver::getWeakClausesContaining (Lit p, vec<Clause>& res) {
-    ClauseAllocator allocator();
     this->assigns[var(p)] = ~this->assigns[var(p)];
     foreach(i, this->clauses.size()) {
-        Clause currClause = allocator[clauses[i]];
+        Clause currClause = ca[clauses[i]];
         if (currClause.contains(p) && this->satisfied(currClause)) {
             res.push(currClause);
         }

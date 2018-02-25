@@ -217,6 +217,21 @@ class Map {
     	}
     	return NULL;
     }
+
+    bool setIfContains(const K& k, const D& d)
+    {
+    	//D* res = NULL;
+        vec<Pair>& ps  = table[index(k)];
+        for (int i = 0; i < ps.size(); i++)
+        {
+            if (equals(ps[i].key, k))
+        	{
+        	    ps[i].data = d;
+       	        return true;
+            }
+        }
+        return false;
+    }
 };
 
 #define MAP_FOREACH(l, bm)  \

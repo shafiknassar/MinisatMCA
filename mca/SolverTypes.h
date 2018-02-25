@@ -122,11 +122,11 @@ public:
 
     friend int   toInt  (lbool l);
     friend lbool toLbool(int   v);
-    friend lbool operator ~ (lbool);
+    friend lbool operator ~(lbool);
 };
 inline int   toInt  (lbool l) { return l.value; }
 inline lbool toLbool(int   v) { return lbool((uint8_t)v);  }
-lbool operator ~(lbool l)     { return lbool((uint8_t)(l.value^(uint8_t)true)); }    // Inspired by the xor operator :)
+inline lbool operator ~(lbool l)     { return lbool((uint8_t)(l.value^(uint8_t)true)); }    // Inspired by the xor operator :)
 
 //=================================================================================================
 // Clause -- a simple class for representing a clause:
@@ -199,6 +199,7 @@ public:
     void         strengthen  (Lit p);
 
     bool        contains(Lit p) const    { for (int i=0; i<size(); ++i) if (data[i].lit == p) return true; return false; }
+
 };
 
 
@@ -420,112 +421,7 @@ inline void Clause::strengthen(Lit p)
 
 
 //=================================================================================================
-/***************************************/
-/* Types and Logic used by MCA */
-/***************************************/
 
-class LitHash {
-public:
-	uint32_t operator()(const Lit& k) const {
-		return var(k);
-	}
-};
-
-typedef Map<Lit, bool, LitHash> LitBitMap;
-
-
-/* Time Complexity: O( c * l * a )
- * 		when c = |clauses|, l=max{literals per clause}, a=|assums|
- *
- * 	Parameters:
- * 		clauses - list of clauses.
- * 		assums - the set of assumptions, serves as input and output.
- */
-void getMutualAssumptions(vec<Clause>& clauses, LitBitMap* assums)
-{
-	Lit *l;
-	LitBitMap *new_assums = new LitBitMap,
-			*tmp_assums = NULL;
-
-	for (int ci = 0; ci < clauses.size(); ++ci)
-	{
-		if (assums->size() == 0) goto CLEANUP;
-
-		Clause& c = clauses[ci];
-		for (l = assums->startLoop(); l != NULL; l = assums->getNext())
-		{
-			if (c.contains(*l) == false)
-			{
-				assums[*l] = false;
-			}
-		}
-		new_assums->clear();
-		for (l = assums->startLoop(); l != NULL; l = assums->getNext())
-		{
-			if (assums[*l] == true)
-			{
-				new_assums->insert(*l, true);
-			}
-		}
-		tmp_assums = assums;
-		assums = new_assums;
-		new_assums = tmp_assums;
-	}
-CLEANUP:
-	delete new_assums;
-}
-
-//void getMutualNonAssumptions(vec<Clause>& clauses, LitBitMap* assums, LitBitMap* out)
-//{
-//	Clause& c;
-//	Lit *l;
-//	LitBitMap *new_assums = new LitBitMap,
-//			*tmp_assums = NULL;
-//	out->clear();
-//	if (clauses.size() == 0) return;
-//	for (int li = 0; li < clauses.last().size(); ++li)
-//	{
-//		out->insert(clauses.last()[li], true);
-//	}
-//
-//	for (int ci = 0; ci < clauses.size()-1; ++ci)
-//	{
-//		if (out->size() == 0) goto CLEANUP;
-//
-//		c = clauses[ci];
-//		for (l = assums->startLoop(); l != NULL; l = assums->getNext())
-//		{
-//			if (c.contains(*l) == false)
-//			{
-//				assums[*l] = false;
-//			}
-//		}
-//		new_assums->clear();
-//		for (l = assums->startLoop(); l != NULL; l = assums->getNext())
-//		{
-//			if (assums[*l] == true)
-//			{
-//				new_assums->insert(*l, true);
-//			}
-//		}
-//		tmp_assums = assums;
-//		assums = new_assums;
-//		new_assums = tmp_assums;
-//	}
-//CLEANUP:
-//	delete new_assums;
-//}
-
-void getMutualLiterals(vec<Clause>& clauses, LitBitMap* out)
-{
-	out->clear();
-	if (clauses.size() == 0) return;
-	for (int li = 0; li < clauses.last().size(); ++li)
-	{
-		out->insert(clauses.last()[li], true);
-	}
-	getMutualAssumptions(clauses, out);
-}
 }
 
 #endif
