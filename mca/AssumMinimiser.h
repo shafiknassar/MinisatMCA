@@ -12,11 +12,25 @@
 #include "mtl/Queue.h"
 #include "mca/global_defs.h"
 
-#define INIT_BITMAP(bm)                    \
+#define INIT_ASSUM_BITMAP(bm)              \
 	do                                     \
     {                                      \
         bm.clear();                        \
-	    foreach (i, initAssum.size())             \
+	    foreach (i, initAssum.size())      \
+        {                                  \
+            bm.insert(initAssum[i], true); \
+         }                                 \
+    } while(0)
+
+#define INIT_NON_ASSUM_BITMAP(bm)          \
+	do                                     \
+    {                                      \
+        bm.clear();                        \
+        foreach(i, s.nVars)                \
+		{ \
+        	\
+        } \
+	    foreach (i, initAssum.size())      \
         {                                  \
             bm.insert(initAssum[i], true); \
          }                                 \
@@ -65,10 +79,16 @@ class AssumMinimiser {
      * */
 
     lbool        solveWithAssum(vec<Lit>& assum);
-    // create vector of assumptions based on a bitmap masked on init assum. INVARIANT: the assum is a subset of init assum!
+    // create vector of assumptions based on a bitmap masked on init assum.
+    //INVARIANT: the assum is a subset of init assum!
     void         litBitMapToVec(vec<Lit>& assum);
-    // create bit map of literals based on the vector assum. INVARIANT: same as previous method + assum is created by minisat!
+    // create bit map of literals based on the vector assum.
+    //INVARIANT: same as previous method + assum is created by minisat!
     void 		 vecToLitBitMap(const vec<Lit>& assum);
+
+    bool         isAssum(Lit l) {
+    	foreach(i, initAssum.size()) if (var(initAssum[i]) == var(l)) return true; return false;
+    }
 
 
 public:
@@ -108,7 +128,7 @@ public:
 
     void     PrintStats    () const;
 
-    lbool   tryToRotate   ();
+    lbool   tryToRotate   (vec<lbool>& model, Lit assum, Lit& newVital);
 };
 
 void     AssumMinimiser::PrintStats    () const {
@@ -218,7 +238,7 @@ void AssumMinimiser::iterativeDel2(vec<Lit> &result) {
 
     if (isSatWithAssum() == l_True) return;
 
-    INIT_BITMAP(litBitMap);
+    INIT_ASSUM_BITMAP(litBitMap);
 
     foreach(i, initAssum.size()) {
         if(litBitMap[initAssum[i]] == false) continue;
@@ -249,7 +269,7 @@ void AssumMinimiser::rotationAlg(vec<Lit> &result) {
 
     if (isSatWithAssum() == l_True) return;
 
-    INIT_BITMAP(litBitMap);
+    INIT_ASSUM_BITMAP(litBitMap);
 
     foreach(i, initAssum.size()) {
         if(litBitMap[initAssum[i]] == false) continue;
@@ -280,13 +300,12 @@ void AssumMinimiser::iterativeIns(vec<Lit> &result) {
 	Lit *lit;
     if (isSatWithAssum() == l_True) return;
     result.clear(true);
-    INIT_BITMAP(litBitMap);
+    INIT_ASSUM_BITMAP(litBitMap);
 
     while (solveWithAssum(result) == l_True)
     {
     	tmp.copyFrom(result);
-    	for (lit = litBitMap.startLoop();
-    			lit != NULL; lit = litBitMap.getNext())
+    	MAP_FOREACH(lit, litBitMap)
     	{
     		tmp.push(*lit);
     		if (solveWithAssum(result) == l_False)
@@ -299,6 +318,65 @@ void AssumMinimiser::iterativeIns(vec<Lit> &result) {
     }
 	return;
 }
+
+void flipVarInModel(vec<lbool>& model, int var)
+{
+	model[var] = ~model[var];
+}
+
+
+/*
+ * The primary function in the rotation algorithm.
+ * Parameters:
+ *    * model - a vector of literals, defines an assignment to all of the variabls
+ *    * assum - an assumption that does NOT hold under the model
+ *    * newVital - output:
+ * */
+lbool   AssumMinimiser::tryToRotate   (vec<lbool>& model, Lit assum, Lit& newVital)
+{
+	vec<Clause> clausesWithAssum, clausesWithLit;
+	s.getClausesContaining(assum, clausesWithAssum);
+	LitBitMap bm, sbm;
+	Lit *l, *k;
+	lbool res;
+
+	getMutualLiterals(clausesWithAssum, &bm);
+	if (bm.size() == 0)
+		return l_False;
+	flipVarInModel(model, var(assum));
+	MAP_FOREACH(l, bm)
+	{
+		flipVarInModel(model, var(*l));
+		if (isAssum(*l))
+		{
+			if (s.checkIfModel(model))
+			{
+				newVital = *l;
+				return true;
+			}
+		}
+		else // *l is not an assum
+		{
+			INIT_ASSUM_BITMAP(sbm);
+			sbm.remove(assum);
+			s.getClausesContaining(*l, clausesWithLit);
+			getMutualAssumptions(clausesWithLit, &sbm);
+			MAP_FOREACH(k, sbm)
+			{
+				flipVarInModel(model, var(*k));
+				if (s.checkIfModel(model))
+				{
+					newVital = *k;
+					return true;
+				}
+				flipVarInModel(model, var(*k));
+			}
+		}
+		flipVarInModel(model, var(*l));
+	}
+	return false;
+}
+
 
 
 

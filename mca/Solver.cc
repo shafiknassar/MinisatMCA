@@ -935,35 +935,50 @@ void Minisat::printSolverStats(Solver const& solver)
     printf("CPU time              : %g s\n", cpu_time);
 }
 
+
+/*****************************************************************************************/
+/* functions for MCA */
+/*****************************************************************************************/
+
+bool    Solver::checkIfModel(vec<lbool>& inAssign)
+{
+	assert (inAssign == nVars());
+	foreach(i, clauses.size())
+	{
+		Clause& c = ca[clauses[i]];
+		// checking if c is satisfied under the given assign
+		bool satisfied = false;
+		foreach(j, c.size())
+		{
+			if (sign(c[j]) ^ inAssign[var(c[j])]) {
+				satisfied = true;
+				break;
+			}
+		}
+		if (!satisfied) return false;
+	}
+	return true;
+}
+
 /**
  * These are inner functions for the solver, that is used by the AssumMinimiser
  */
 
 void Solver::getClausesContaining(Lit p, vec<Clause>& res) {
-    ClauseAllocator allocator();
     foreach(i, this->clauses.size()) {
-        Clause currClause = allocator[clauses[i]];
-        if (currClause.doesContain(p)) {
+        Clause currClause = ca[clauses[i]];
+        if (currClause.contains(p)) {
             res.push(currClause);
         }
     }
 }
 
-void Solver::getClausesContaining(Lit p, vec<Clause>& res) {
-    ClauseAllocator allocator();
-    foreach(i, this->clauses.size()) {
-        Clause currClause = allocator[clauses[i]];
-        if (currClause.doesContain(p)) {
-            res.push(currClause);
-        }
-    }
-}
 
 void Solver::getWeakClausesContaining (Lit p, vec<Clause>& res) {
     this->assigns[var(p)] = ~this->assigns[var(p)];
     foreach(i, this->clauses.size()) {
         Clause currClause = ca[clauses[i]];
-        if (currClause.doesContain(p) && this->satisfied(currClause)) {
+        if (currClause.contains(p) && this->satisfied(currClause)) {
             res.push(currClause);
         }
     }

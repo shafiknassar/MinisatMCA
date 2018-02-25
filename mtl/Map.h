@@ -152,6 +152,19 @@ class Map {
         return false;
     }
 
+    bool getIfContains(const K& k, D *out) const
+    {
+        if (sz == 0) return false;
+        const vec<Pair>& ps = table[index(k)];
+        for (int i = 0; i < ps.size(); i++)
+            if (equals(ps[i].key, k))
+            {
+            	*out = ps[i].data;
+                return true;
+            }
+        return false;
+    }
+
     // PRECONDITION: the key must exist in the map.
     void remove(const K& k) {
         assert(table != NULL);
@@ -205,6 +218,9 @@ class Map {
     	return NULL;
     }
 };
+
+#define MAP_FOREACH(l, bm)  \
+	for (l = bm.startLoop(); l != NULL; l = bm.getNext())
 
 
 //=================================================================================================
