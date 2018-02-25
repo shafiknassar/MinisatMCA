@@ -443,7 +443,6 @@ typedef Map<Lit, bool, LitHash> LitBitMap;
  */
 void getMutualAssumptions(vec<Clause>& clauses, LitBitMap* assums)
 {
-	Clause& c;
 	Lit *l;
 	LitBitMap *new_assums = new LitBitMap,
 			*tmp_assums = NULL;
@@ -452,7 +451,7 @@ void getMutualAssumptions(vec<Clause>& clauses, LitBitMap* assums)
 	{
 		if (assums->size() == 0) goto CLEANUP;
 
-		c = clauses[ci];
+		Clause& c = clauses[ci];
 		for (l = assums->startLoop(); l != NULL; l = assums->getNext())
 		{
 			if (c.contains(*l) == false)
