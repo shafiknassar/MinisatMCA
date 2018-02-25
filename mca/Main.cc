@@ -215,6 +215,10 @@ int main(int argc, char** argv)
         		printf("Using Iterative Insertion Algorithm for minimizing the conflicting set of assumptions\n");
         		am.iterativeIns(assumRes);
         		break;
+            case 3:
+                printf("Using Rotation Algorithm for minimizing the conflicting set of assumptions\n");
+                am.rotationAlg(assumRes);
+                break;
         	default:
         		printf("Internal error!\n");
         		exit(1);

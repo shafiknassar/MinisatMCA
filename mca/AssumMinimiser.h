@@ -333,6 +333,7 @@ void AssumMinimiser::rotationAlg(vec<Lit> &result) {
     lbool ret;
     result.clear(false);
     vec<Lit> vecAssum;
+    Lit vitalAssum;
 
     if (isSatWithAssum() == l_True) return;
 
@@ -341,14 +342,15 @@ void AssumMinimiser::rotationAlg(vec<Lit> &result) {
     foreach(i, initAssum.size()) {
         if(litBitMap[initAssum[i]] == false) continue;
         litBitMap[initAssum[i]] = false;
-        TRACE("Removing " << p.toString() << " from currAssum");
+        TRACE("Removing " << initAssum[i].toString() << " from currAssum");
         litBitMapToVec(vecAssum);
         ret = solveWithAssum(vecAssum);
         if (ret == l_True) {
-        	TRACE(p.toString() << " is essential");
+        	TRACE(initAssum[i].toString() << " is vital");
         	TRACE("Added it back to currAssum");
             litBitMap[initAssum[i]] = true;
-        	// tryToRotate
+            vitalAssum = lit_Undef;
+        	tryToRotate(this->s.model, initAssum[i], vitalAssum);
         } else {
         	TRACE(p.toString() << " isn't essential" << std::endl
         			<< "Updating current assumptions");
@@ -395,7 +397,7 @@ void flipVarInModel(vec<lbool>& model, int var)
 /*
  * The primary function in the rotation algorithm.
  * Parameters:
- *    * model - a vector of literals, defines an assignment to all of the variabls
+ *    * model - a vector of literals, defines an assignment to all of the variables
  *    * assum - an assumption that does NOT hold under the model
  *    * newVital - output:
  * */
