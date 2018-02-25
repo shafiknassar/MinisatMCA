@@ -960,10 +960,9 @@ void Solver::getClausesContaining(Lit p, vec<Clause>& res) {
 }
 
 void Solver::getWeakClausesContaining (Lit p, vec<Clause>& res) {
-    ClauseAllocator allocator();
     this->assigns[var(p)] = ~this->assigns[var(p)];
     foreach(i, this->clauses.size()) {
-        Clause currClause = allocator[clauses[i]];
+        Clause currClause = ca[clauses[i]];
         if (currClause.doesContain(p) && this->satisfied(currClause)) {
             res.push(currClause);
         }
