@@ -5,7 +5,7 @@ c    forced? no
 c    mixed sat? no 
 c    clause length = 3 
 c
-p Assumptions 3
+p assumptions 3
 1
 2
 3
