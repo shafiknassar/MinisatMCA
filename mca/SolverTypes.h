@@ -198,7 +198,7 @@ public:
     Lit          subsumes    (const Clause& other) const;
     void         strengthen  (Lit p);
 
-    bool        contains(Lit p) const    { for (int i=0; i<size(); ++i) if (data[i].lit == p) return true; return false; }
+    bool        contains(Lit p) const    { for (int i=0; i<size(); ++i) if ((*this)[i] == p) return true; return false; }
 
 };
 
