@@ -26,6 +26,9 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 
 #include "mtl/IntTypes.h"
 #include "mtl/XAlloc.h"
+#include <string>
+#include <sstream>
+using std::string;
 
 namespace Minisat {
 
@@ -82,6 +85,15 @@ public:
 
     const T& last  (void) const        { return data[sz-1]; }
     T&       last  (void)              { return data[sz-1]; }
+
+    std::string   toString()   const        {
+    	std::stringstream ss;
+    	    	for (int i=0; i<size(); ++i)
+    	    	{
+    	    		ss << ((*this)[i]).toString() << " ";
+    	    	}
+    	        return ss.str();
+    }
 
     // Set interface:
     bool contains  (const T& t) const   { for (int i=0; i<sz; ++i) if (t == data[i]) return true; return false; }

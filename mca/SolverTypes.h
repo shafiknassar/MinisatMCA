@@ -142,6 +142,7 @@ class Clause {
         unsigned reloced   : 1;
         unsigned size      : 27; }                            header;
     union { Lit lit; float act; uint32_t abs; CRef rel; } data[0];
+    // Notice that the "arr[0]" trick requires that no field is added after data.
 
     friend class ClauseAllocator;
 
@@ -200,7 +201,29 @@ public:
 
     bool        contains(Lit p) const    { for (int i=0; i<size(); ++i) if ((*this)[i] == p) return true; return false; }
 
+    vec<Lit>*   toVec()         const {
+    	vec<Lit> *res = new vec<Lit>;
+    	for (int i=0; i<size(); ++i)
+    	{
+    		res->push((*this)[i]);
+    	}
+    	return res;
+    }
+
+    string toString() const
+    {
+    	std::stringstream ss;
+    	for (int i=0; i<size(); ++i)
+    	{
+    		ss << ((Lit)(*this)[i]).toString() << " ";
+    	}
+        return ss.str();
+    }
+
 };
+
+
+
 
 
 //=================================================================================================

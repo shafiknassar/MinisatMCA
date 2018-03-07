@@ -22,6 +22,7 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 
 #include "mtl/IntTypes.h"
 #include "mtl/Vec.h"
+#include "mca/global_defs.h"
 
 namespace Minisat {
 
@@ -178,9 +179,11 @@ class Map {
     }
 
     void clear  () {
+    	TRACE((void*)table);
         cap = sz = 0;
         delete [] table;
         table = NULL;
+    	TRACE_END_FUNC;
     }
 
     int  elems()        const { return sz; }
@@ -206,15 +209,21 @@ class Map {
     // key iteration methods:
 
 
-    K* startLoop()  { globalIter = 0, perTableIter = 0; return &(table[0][perTableIter++].key); }
+    K* startLoop()  { globalIter = 0, perTableIter = 0; assert(table); TRACE("iter started"); return &(table[0][perTableIter++].key); }
     K* getNext()
     {
-    	if (perTableIter < table[globalIter].size()) return &(table[globalIter][perTableIter++].key);
+    	if (perTableIter < table[globalIter].size())
+    	{
+    		TRACE("In same table!");
+    		return &(table[globalIter][perTableIter++].key);
+    	}
     	if (++globalIter < cap)
     	{
+    		TRACE("next table");
     		perTableIter = 0;
     		return &(table[globalIter][perTableIter++].key);
     	}
+    	TRACE("passed cap - iteration finished");
     	return NULL;
     }
 

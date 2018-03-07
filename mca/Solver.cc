@@ -23,6 +23,7 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #include "mtl/Sort.h"
 #include "mca/Solver.h"
 #include "utils/System.h"
+#include "global_defs.h"
 
 using namespace Minisat;
 
@@ -942,6 +943,7 @@ void Minisat::printSolverStats(Solver const& solver)
 
 bool    Solver::checkIfModel(vec<lbool>& inAssign)
 {
+	TRACE_START_FUNC;
 	assert (inAssign.size() == nVars());
 	foreach(i, clauses.size())
 	{
@@ -955,8 +957,15 @@ bool    Solver::checkIfModel(vec<lbool>& inAssign)
 				break;
 			}
 		}
-		if (!satisfied) return false;
+		if (!satisfied)
+		{
+			TRACE("NOT A MODEL!");
+			TRACE_END_FUNC;
+			return false;
+		}
 	}
+	TRACE("MODEL!");
+	TRACE_END_FUNC;
 	return true;
 }
 
@@ -964,23 +973,39 @@ bool    Solver::checkIfModel(vec<lbool>& inAssign)
  * These are inner functions for the solver, that is used by the AssumMinimiser
  */
 
-void Solver::getClausesContaining(Lit p, vec<Clause>& res) {
+// TODO: Better design, implement a method for the solver that returns all of the clauses.
+// TODO:Findind the
+
+void Solver::getClausesContaining(Lit p, vec<vec<Lit>*>& res) {
+	TRACE_START_FUNC;
+	TRACE("Finding all clauses Containing " << p.toString());
     foreach(i, this->clauses.size()) {
-        Clause currClause = ca[clauses[i]];
-        if (currClause.contains(p)) {
-            res.push(currClause);
+        vec<Lit> *pCurrClause = ca[clauses[i]].toVec();
+        TRACE("Checking clause: " << pCurrClause->toString() << " i = " << i);
+        if ((*pCurrClause).contains(p)) {
+        	TRACE("Clause contains literal");
+            res.push(pCurrClause);
+        } else {
+        	TRACE("Clause doesn't contain literal");
         }
     }
+    TRACE_END_FUNC;
 }
 
 
-void Solver::getWeakClausesContaining (Lit p, vec<Clause>& res) {
+
+/*
+ * Returns the clauses that contain p and are only satisfied by p.
+ */
+void Solver::getWeakClausesContaining (Lit p, vec<vec<Lit>*>& res) {
+	TRACE_START_FUNC;
     this->assigns[var(p)] = ~this->assigns[var(p)];
     foreach(i, this->clauses.size()) {
-        Clause currClause = ca[clauses[i]];
-        if (currClause.contains(p) && this->satisfied(currClause)) {
-            res.push(currClause);
+        Clause& currClause = ca[clauses[i]];
+        if (currClause.contains(p) && !(this->satisfied(currClause))) {
+            res.push(currClause.toVec());
         }
     }
     this->assigns[var(p)] = ~this->assigns[var(p)];
+    TRACE_END_FUNC;
 }
