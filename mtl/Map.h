@@ -134,6 +134,7 @@ class Map {
 
     // PRECONDITION: the key must *NOT* exist in the map.
     void insert (const K& k, const D& d) { if (checkCap(sz+1)) rehash(); _insert(k, d); sz++; }
+
     bool peek   (const K& k, D& d) const {
         if (sz == 0) return false;
         const vec<Pair>& ps = table[index(k)];
@@ -179,11 +180,11 @@ class Map {
     }
 
     void clear  () {
-    	TRACE((void*)table);
+    	//TRACE((void*)table);
         cap = sz = 0;
         delete [] table;
         table = NULL;
-    	TRACE_END_FUNC;
+    	//TRACE_END_FUNC;
     }
 
     int  elems()        const { return sz; }
@@ -209,19 +210,28 @@ class Map {
     // key iteration methods:
 
 
-    K* startLoop()  { globalIter = 0, perTableIter = 0; assert(table); TRACE("iter started"); return &(table[0][perTableIter++].key); }
+    K* startLoop()
+    {
+    	globalIter = 0, perTableIter = 0;
+    	assert(table);
+    	TRACE("Map full state: ");
+    	TRACE("          size: " << sz);
+    	TRACE("         table: " << table);
+    	while (table[globalIter].size() == 0) globalIter++;
+    	return &(table[globalIter][perTableIter++].key);
+    }
     K* getNext()
     {
     	if (perTableIter < table[globalIter].size())
     	{
-    		TRACE("In same table!");
+    		//TRACE("In same table!");
     		return &(table[globalIter][perTableIter++].key);
     	}
-    	if (++globalIter < cap)
+    	while (++globalIter < cap)
     	{
-    		TRACE("next table");
     		perTableIter = 0;
-    		return &(table[globalIter][perTableIter++].key);
+    		if (table[globalIter].size() > 0)
+    		    return &(table[globalIter][perTableIter++].key);
     	}
     	TRACE("passed cap - iteration finished");
     	return NULL;

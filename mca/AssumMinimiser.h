@@ -73,76 +73,74 @@ public:
 typedef Map<Lit, bool, LitHash> LitBitMap;
 
 
+// Returns a vec<Lit> that contains all mutual literals in all the given clauses
+// Time Complexity: O( c * l * l )
+// * when c = |clauses|, l=max{literals per clause}
+// Notes:
+// res is dynamically allocated - must be deleted
+// assumes no clause contains same literal more than once
+vec<Lit>* getMutualLiteralsInClauses(vec<vec<Lit>*>& clauses)
+{
+	TRACE_START_FUNC;
+	vec<Lit> *lastClause = clauses.last();
+	vec<Lit> *res = new vec<Lit>;
+	LitBitMap bm;
+	Lit *pL = NULL;
+
+	// initializing bitmap as the last clause
+	foreach(i, lastClause->size())
+	{
+		TRACE("Adding to bitmap: " << (*lastClause)[i].toString());
+		bm.insert((*lastClause)[i], true);
+	}
+
+	// marking out all literals that are not contained in a clause
+	foreach(i, clauses.size())
+	{
+		TRACE("Checking clause: " << clauses[i]->toString());
+	    MAP_FOREACH(pL, bm)
+		{
+	    	if (!(clauses[i]->contains(*pL)))
+	    	{
+	    		TRACE("    Removing: " << pL->toString());
+	    		bm[*pL] = false;
+	    	}
+		}
+	}
+
+	// copying the unmarked literals to the returned vector
+	MAP_FOREACH(pL, bm)
+	{
+		TRACE("Checking: " << pL->toString());
+		if (true == bm[*pL]){
+			TRACE("    Added to OUTPUT");
+			res->push(*pL);
+		}
+	}
+
+	TRACE_END_FUNC;
+	return res;
+}
+
 /* Time Complexity: O( c * l * a )
  * 		when c = |clauses|, l=max{literals per clause}, a=|assums|
  *
  * 	Parameters:
  * 		clauses - list of clauses.
- * 		assums - the set of assumptions, serves as input and output.
+ * 		assums - the set of assumptions
  */
-void getMutualAssumptions(vec<vec<Lit>*>& clauses, LitBitMap* assums)
-{
-	Lit *l;
-	LitBitMap *new_assums = new LitBitMap,
-			*tmp_assums = NULL;
-
-	TRACE_START_FUNC;
-
-	for (int ci = 0; ci < clauses.size(); ++ci)
-	{
-		if (assums->size() == 0) goto CLEANUP;
-
-		vec<Lit>* c = clauses[ci];
-		TRACE("Checking Clause: " << c->toString());
-		MAP_FOREACH(l, (*assums))
-		{
-			TRACE("    Does it contain: " << l->toString());
-			if (c->contains(*l) == false)
-			{
-				TRACE("        No!");
-				(*assums)[*l] = false;
-			}
-		}
-		new_assums->clear();
-		MAP_FOREACH(l, (*assums))
-		{
-			if ((*assums)[*l] == true)
-			{
-				new_assums->insert(*l, true);
-			}
-		}
-		tmp_assums = assums;
-		assums = new_assums;
-		new_assums = tmp_assums;
-	}
-CLEANUP:
-	delete new_assums;
-	TRACE_END_FUNC;
-}
-
-
-void getMutualLiterals(vec<vec<Lit>*>& clauses, LitBitMap* out)
+// Notes:
+// res is dynamically allocated - must be deleted
+// assumes no clause contains same literal more than once
+vec<Lit>* getMutualAssumptionsInClauses(vec<vec<Lit>*>& clauses, vec<Lit>& assum)
 {
 	TRACE_START_FUNC;
-	Lit *k;
-	out->clear();
-	if (clauses.size() == 0) {
-		TRACE_END_FUNC;
-		return;
-	}
-	TRACE("Initializing the bitmap as the last clause");
-	for (int li = 0; li < clauses.last()->size(); ++li)
-	{
-		TRACE("    Inserting: " << (*clauses.last())[li].toString());
-		out->insert((*clauses.last())[li], true);
-	}
-	getMutualAssumptions(clauses, out);
-	TRACE("Out:");
-	MAP_FOREACH(k, (*out))
-	{
-		TRACE("    " << k->toString());
-	}
+	vec<Lit> *res = NULL;
+	clauses.push(&assum);
+	res = getMutualLiteralsInClauses(clauses);
+	clauses.pop();
 	TRACE_END_FUNC;
+	return res;
 }
 
 class AssumMinimiser {
@@ -368,6 +366,8 @@ void AssumMinimiser::rotationAlg(vec<Lit> &result) {
     vec<Lit> vecAssum;
     Lit newVitalAssum;
 
+    TRACE_START_FUNC;
+
     if (isSatWithAssum() == l_True) return;
 
     INIT_ASSUM_BITMAP(litBitMap);
@@ -386,7 +386,7 @@ void AssumMinimiser::rotationAlg(vec<Lit> &result) {
             newVitalAssum = lit_Undef;
         	if (tryToRotate(this->s.model, initAssum[i], newVitalAssum))
         	{
-        		litBitMap[~newVitalAssum] = false;
+        		litBitMap[newVitalAssum] = false;
         	}
         } else {
         	TRACE(initAssum[i].toString() << " isn't essential" << std::endl
@@ -396,6 +396,7 @@ void AssumMinimiser::rotationAlg(vec<Lit> &result) {
         vecAssum.clear(true);
     }
     litBitMapToVec(result);
+    TRACE_END_FUNC;
     return;
 }
 
@@ -431,84 +432,121 @@ void flipVarInModel(vec<lbool>& model, int var)
 }
 
 
+
+
 /*
  * The primary function in the rotation algorithm.
  * Parameters:
  *    * model - a vector of literals, defines an assignment to all of the variables
- *    * assum - an assumption that does NOT hold under the model
+ *    * vitalAssum - the vital assumption, it must NOT hold under the current given model
  *    * newVital - output:
  * */
-bool   AssumMinimiser::tryToRotate   (vec<lbool>& model, Lit assum, Lit& newVital)
+bool   AssumMinimiser::tryToRotate   (vec<lbool>& model, Lit vitalAssum, Lit& newVital)
 {
+	// Local variables
+	vec<vec<Lit>*>  clausesContainingVitAssum;
+	vec<vec<Lit>*>  clausesContainingBroker;
+	vec<Lit>*       pMutualLiterals             = NULL;
+	vec<Lit>*       pBrokerMutualLiterals       = NULL;
+	bool            res                         = false;
+	Lit             l                           = lit_Undef;
+	Lit             k                           = lit_Undef;
+
 	TRACE_START_FUNC;
+	// Initializing
+	newVital = lit_Undef;
+	s.getWeakClausesContaining(~vitalAssum, clausesContainingVitAssum);
+	pMutualLiterals =
+			getMutualLiteralsInClauses(clausesContainingVitAssum); // dynamic alloc
+	/* original vital assumption must be flipped back
+	 * to the assignment in order to find new vitals */
+	/*flipOut*/flipVarInModel(model, var(vitalAssum));
 
-	vec<vec<Lit>*> clausesWithAssum, clausesWithLit;
-	s.getWeakClausesContaining(~assum, clausesWithAssum);
-	LitBitMap bm, sbm;
-	Lit *l, *k;
-	lbool res;
-
-	getMutualLiterals(clausesWithAssum, &bm);
-	if (bm.size() == 1)
+	/* if there's only 1, then it's the original vital assumption*/
+	if (1 == pMutualLiterals->size())
 	{
-		TRACE("No literals mutual for all relevant clauses!");
-		TRACE_END_FUNC;
-		return false;
+		goto CLEANUP;
 	}
-	TRACE("Flipping the vital assumption back to the model " << assum.toString());
-	flipVarInModel(model, var(assum));
-	TRACE("Marking the vital assum as false to skip it in iterations");
-	bm[~assum] = false;
-	MAP_FOREACH(l, bm)
+	assert(pMutualLiterals->size() > 1);
+
+	TRACE("Mutual Literals are: " << pMutualLiterals->toString());
+
+	/* loop through mutualLiterals to find newVital or
+	 * find a broker that can lead to newVital */
+	foreach(iL, pMutualLiterals->size())
 	{
-		assert(l);
-		if(!bm[*l]) continue;
-		TRACE("Flipping: " << l->toString());
-		flipVarInModel(model, var(*l));
-		if (isConfWithAssum(*l))
+		l = (*pMutualLiterals)[iL];
+		// we don't want to mistake the old vital as a new vital
+		if (var(l) == var(vitalAssum)) continue;
+
+		if (isConfWithAssum(l))    // l is a potential newVital
 		{
+			/* flipping the new potential vital assumption out of the model*/
+			/*flipOut*/flipVarInModel(model, var(l));
+			TRACE("Found a potential vital: " << l.toString());
 			if (s.checkIfModel(model))
 			{
-				newVital = *l;
-				TRACE("found new vital assumption: " << newVital.toString());
-				TRACE_END_FUNC;
-				return true;
+				/* remember that l is conflicting with
+				 * the assumptions, so ~l is an assumption */
+				newVital = ~l;
+				res = true;
+				goto CLEANUP;
 			}
 		}
-		else // *l is not an assum
+		else    // l is a potential broker
 		{
-	        TRACE(initAssum.size() << "initAssum : " << initAssum.toString());
-			INIT_ASSUM_BITMAP(sbm);
-			TRACE(sbm.size() << " Init Assums are:");
-			MAP_FOREACH(k, sbm)
+			TRACE("Found a potential broker: " << l.toString());
+
+			/* similar to what we did to vitalAssum
+			 * l is only a broker */
+			s.getWeakClausesContaining(~l, clausesContainingBroker);
+			pBrokerMutualLiterals =
+					getMutualLiteralsInClauses(clausesContainingBroker); //dynamic alloc
+			TRACE("Mutual Literals are: " << pBrokerMutualLiterals->toString());
+			/* flipping the new potential vital assumption out of the model*/
+			/*flipOut*/flipVarInModel(model, var(l));
+			if (pBrokerMutualLiterals->size() > 1)
 			{
-				TRACE("    " << k->toString());
-			}
-			sbm[assum] = false;
-			//TODO: check if ~
-			s.getWeakClausesContaining(~*l, clausesWithLit);
-			getMutualAssumptions(clausesWithLit, &sbm);
-			MAP_FOREACH(k, sbm)
-			{
-				if (!sbm[assum]) continue;
-				TRACE("Flipping: " << k->toString());
-				flipVarInModel(model, var(*k));
-				if (s.checkIfModel(model))
+				TRACE("Broker " << l.toString()
+						<< " has mutualLiterals: " << pBrokerMutualLiterals->toString());
+				foreach(iV, pBrokerMutualLiterals->size())
 				{
-					newVital = *k;
-					TRACE("tryToRotate: found new vital assumption: " << newVital.toString());
-					TRACE_END_FUNC;
-					return true;
+					k = (*pBrokerMutualLiterals)[iV];
+
+					if (isConfWithAssum(k))
+					/* can't be equal to l since
+			     	 * l is not conflicting with assumptions */
+					{
+						TRACE("Under broker: " << l.toString() <<
+								"Found a potential vital: " << k.toString());
+						/*flipOut*/flipVarInModel(model, var(k));
+						if (s.checkIfModel(model))
+						{
+							newVital = ~k;
+							res = true;
+							delete pBrokerMutualLiterals;
+							goto CLEANUP;
+						}
+						/*flipIn*/flipVarInModel(model, var(k));
+					}
 				}
-				flipVarInModel(model, var(*k));
 			}
+			assert(pBrokerMutualLiterals->size() >= 1);
+			delete pBrokerMutualLiterals;
 		}
-		flipVarInModel(model, var(*l));
+		/*flipIn*/flipVarInModel(model, var(l));
 	}
-	TRACE("tryToRotate: no new vital found");
-	TRACE_END_FUNC;
-	return false;
+
+CLEANUP:
+/*flipIn*/flipVarInModel(model, var(vitalAssum));
+    delete pMutualLiterals;
+    if (res) TRACE("FOUND VITAL ASSUMPTION: " << newVital.toString());
+    else     TRACE("NO NEW VITAL FOUND");
+    TRACE_END_FUNC;
+    return res;
 }
+
+
 
 
 
@@ -541,7 +579,76 @@ void AssumMinimiser::printCurrentStats()
 
 
 /* TODO try to minimize the SAT calls */
+////////////////////////////////////////
+/*TRACE_START_FUNC;
 
+vec<vec<Lit>*> clausesWithAssum, clausesWithLit;
+s.getWeakClausesContaining(~assum, clausesWithAssum);
+LitBitMap bm, sbm;
+Lit *l, *k;
+lbool res;
+
+getMutualLiterals(clausesWithAssum, &bm);
+if (bm.size() == 1)
+{
+	TRACE("No literals mutual for all relevant clauses!");
+	TRACE_END_FUNC;
+	return false;
+}
+TRACE("Flipping the vital assumption back to the model " << assum.toString());
+flipVarInModel(model, var(assum));
+TRACE("Marking the vital assum as false to skip it in iterations");
+bm[~assum] = false;
+MAP_FOREACH(l, bm)
+{
+	assert(l);
+	if(!bm[*l]) continue;
+	TRACE("Flipping: " << l->toString());
+	flipVarInModel(model, var(*l));
+	if (isConfWithAssum(*l))
+	{
+		if (s.checkIfModel(model))
+		{
+			newVital = *l;
+			TRACE("found new vital assumption: " << newVital.toString());
+			TRACE_END_FUNC;
+			return true;
+		}
+	}
+	else // *l is not an assum
+	{
+        TRACE(initAssum.size() << "initAssum : " << initAssum.toString());
+		INIT_ASSUM_BITMAP(sbm);
+		TRACE(sbm.size() << " Init Assums are:");
+		MAP_FOREACH(k, sbm)
+		{
+			TRACE("    " << k->toString());
+		}
+		sbm[assum] = false;
+		//TODO: check if ~
+		s.getWeakClausesContaining(~*l, clausesWithLit);
+		getMutualAssumptions(clausesWithLit, &sbm);
+		MAP_FOREACH(k, sbm)
+		{
+			if (!sbm[assum]) continue;
+			TRACE("Flipping: " << k->toString());
+			flipVarInModel(model, var(*k));
+			if (s.checkIfModel(model))
+			{
+				newVital = *k;
+				TRACE("tryToRotate: found new vital assumption: " << newVital.toString());
+				TRACE_END_FUNC;
+				return true;
+			}
+			flipVarInModel(model, var(*k));
+		}
+	}
+	flipVarInModel(model, var(*l));
+}
+TRACE("tryToRotate: no new vital found");
+TRACE_END_FUNC;
+return false;
+*/
 
 }
 

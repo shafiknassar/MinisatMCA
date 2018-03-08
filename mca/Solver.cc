@@ -1002,7 +1002,9 @@ void Solver::getWeakClausesContaining (Lit p, vec<vec<Lit>*>& res) {
     this->assigns[var(p)] = ~this->assigns[var(p)];
     foreach(i, this->clauses.size()) {
         Clause& currClause = ca[clauses[i]];
+        TRACE("Checking clause: " << currClause.toString() << " i = " << i);
         if (currClause.contains(p) && !(this->satisfied(currClause))) {
+        	TRACE("    Added!");
             res.push(currClause.toVec());
         }
     }
