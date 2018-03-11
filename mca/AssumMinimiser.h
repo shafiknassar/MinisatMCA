@@ -82,12 +82,19 @@ typedef Map<Lit, bool, LitHash> LitBitMap;
 vec<Lit>* getMutualLiteralsInClauses(vec<vec<Lit>*>& clauses)
 {
 	TRACE_START_FUNC;
-	vec<Lit> *lastClause = clauses.last();
-	vec<Lit> *res = new vec<Lit>;
-	LitBitMap bm;
-	Lit *pL = NULL;
+	vec<Lit>        *res = new vec<Lit>;
+	vec<Lit> *lastClause = NULL;
+	LitBitMap         bm;
+	Lit              *pL = NULL;
+
+	// checking precondition
+	if (clauses.size() == 0)
+	{
+		return res;
+	}
 
 	// initializing bitmap as the last clause
+	lastClause = clauses.last();
 	foreach(i, lastClause->size())
 	{
 		TRACE("Adding to bitmap: " << (*lastClause)[i].toString());
@@ -266,6 +273,7 @@ void AssumMinimiser::litBitMapToVec(vec<Lit>& assum) {
 
 void AssumMinimiser::vecToLitBitMap(const vec<Lit>& assum) {
     Lit negLit;
+    TRACE_START_FUNC;
     foreach(i, initAssum.size()) {
 		litBitMap[initAssum[i]] = false;
 	}
@@ -273,18 +281,26 @@ void AssumMinimiser::vecToLitBitMap(const vec<Lit>& assum) {
         TRACE(assum[i].toString());
     }
     foreach(i, assum.size()) {
-        negLit = ~assum[i];     // minisat saves the literal negated, so we negate it back to get the right value.
-	    TRACE("Adding Lit=" << negLit.toString());
+    	/* minisat saves the literal negated,
+    	 * so we negate it back to get the right value. */
+        negLit = ~assum[i];
+	    TRACE("Adding Lit = " << negLit.toString());
 		assert(litBitMap.has(negLit));
 		litBitMap[negLit] = true;
 	}
+    TRACE_END_FUNC;
 }
 
 lbool AssumMinimiser::isSatWithAssum() {
     if (isSatWith == l_Undef) {
         isSatWith = s.solveLimited(initAssum);
+        if (isSatWith == l_True){
+        	isSatWo = l_True;
+        	nSAT++;
+        } else {
+        	nUNSAT++;
+        }
         printCurrentStats();
-        if (isSatWith == l_True) isSatWo = l_True;
     }
     //if (isSatWith) TRACE()
     return isSatWith;
@@ -294,8 +310,13 @@ lbool AssumMinimiser::isSatWithAssum() {
 lbool AssumMinimiser::isSatWoAssum() {
     if (isSatWo == l_Undef) {
         isSatWo = s.solveLimited(vec<Lit>());
+        if (isSatWo == l_False) {
+        	isSatWith = l_False;
+        	nUNSAT++;
+        } else {
+        	nSAT++;
+        }
         printCurrentStats();
-        if (isSatWo == l_False) isSatWith = l_False;
     }
     return isSatWo;
 }
@@ -375,6 +396,7 @@ void AssumMinimiser::rotationAlg(vec<Lit> &result) {
     foreach(i, initAssum.size()) {
         if(litBitMap[initAssum[i]] == false) continue;
         litBitMap[initAssum[i]] = false;
+
         TRACE("Removing " << initAssum[i].toString() << " from currAssum");
         // TODO: Maybe it would be more efficient to send in ~initAssum[i]?
         litBitMapToVec(vecAssum);
@@ -386,11 +408,12 @@ void AssumMinimiser::rotationAlg(vec<Lit> &result) {
             newVitalAssum = lit_Undef;
         	if (tryToRotate(this->s.model, initAssum[i], newVitalAssum))
         	{
-        		litBitMap[newVitalAssum] = false;
+        		litBitMap[newVitalAssum] = true;
         	}
         } else {
         	TRACE(initAssum[i].toString() << " isn't essential" << std::endl
         			<< "Updating current assumptions");
+        	TRACE("MiniSAT conflict minimization resulted with this: " << s.conflict.toString());
         	vecToLitBitMap(s.conflict);
         }
         vecAssum.clear(true);
@@ -438,6 +461,7 @@ void flipVarInModel(vec<lbool>& model, int var)
  * The primary function in the rotation algorithm.
  * Parameters:
  *    * model - a vector of literals, defines an assignment to all of the variables
+ *              the function does NOT guarantee to leave the model untouched.
  *    * vitalAssum - the vital assumption, it must NOT hold under the current given model
  *    * newVital - output:
  * */
@@ -462,8 +486,9 @@ bool   AssumMinimiser::tryToRotate   (vec<lbool>& model, Lit vitalAssum, Lit& ne
 	 * to the assignment in order to find new vitals */
 	/*flipOut*/flipVarInModel(model, var(vitalAssum));
 
-	/* if there's only 1, then it's the original vital assumption*/
-	if (1 == pMutualLiterals->size())
+	/* if there's only 1, then it's the original ~vitalAssum
+	 * if there's none then there are no clauses containing ~vitalAssum*/
+	if (pMutualLiterals->size() <= 1)
 	{
 		goto CLEANUP;
 	}
@@ -513,7 +538,7 @@ bool   AssumMinimiser::tryToRotate   (vec<lbool>& model, Lit vitalAssum, Lit& ne
 				{
 					k = (*pBrokerMutualLiterals)[iV];
 
-					if (isConfWithAssum(k))
+					if (isConfWithAssum(k) && var(k) != var(vitalAssum))
 					/* can't be equal to l since
 			     	 * l is not conflicting with assumptions */
 					{

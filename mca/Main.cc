@@ -245,6 +245,12 @@ int main(int argc, char** argv)
             else //ret == l_Undef
                 fprintf(outfile, "INDET\n");
             fclose(outfile);
+        } else {
+        	printf("Conflicting Assumptions:\n");
+        	for (int i = 0; i < assumRes.size(); ++i) {
+        	    printf("%s%s", (i==0)?"":" ", assumRes[i].toString().c_str());
+        	}
+        	printf(" 0\n");
         }
         
 #ifdef NDEBUG
