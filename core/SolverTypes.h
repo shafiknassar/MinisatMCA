@@ -29,11 +29,6 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #include "mtl/Vec.h"
 #include "mtl/Map.h"
 #include "mtl/Alloc.h"
-#include "global_defs.h"
-
-#include <string>
-#include <sstream>
-using std::string;
 
 namespace Minisat {
 
@@ -57,20 +52,13 @@ struct Lit {
     bool operator == (Lit p) const { return x == p.x; }
     bool operator != (Lit p) const { return x != p.x; }
     bool operator <  (Lit p) const { return x < p.x;  } // '<' makes p, ~p adjacent in the ordering.
-
-    string toString() const {
-        std::stringstream ss;
-        ss << (x & 1 ? "-" : "") << ((x/2) + 1);
-        return ss.str();
-    }
-
 };
 
 
 inline  Lit  mkLit     (Var var, bool sign) { Lit p; p.x = var + var + (int)sign; return p; }
 inline  Lit  operator ~(Lit p)              { Lit q; q.x = p.x ^ 1; return q; }
 inline  Lit  operator ^(Lit p, bool b)      { Lit q; q.x = p.x ^ (unsigned int)b; return q; }
-inline  bool sign      (Lit p)              { return p.x & 1; } // sign == false means the variable is not negated
+inline  bool sign      (Lit p)              { return p.x & 1; }
 inline  int  var       (Lit p)              { return p.x >> 1; }
 
 // Mapping Literals to and from compact integers suitable for array indexing:

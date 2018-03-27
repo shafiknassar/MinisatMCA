@@ -138,10 +138,6 @@ public:
     uint64_t solves, starts, decisions, rnd_decisions, propagations, conflicts;
     uint64_t dec_vars, clauses_literals, learnts_literals, max_literals, tot_literals;
 
-    // Methods for communicating assumptions
-    const Lit&      getAssumption(int i); //returns lit_Undef if i is out of range
-    inline int      nAssumptions() { return assumptions.size(); }
-
 protected:
 
     // Helper structures:
@@ -361,11 +357,10 @@ inline bool     Solver::solve         (const vec<Lit>& assumps){ budgetOff(); as
 inline lbool    Solver::solveLimited  (const vec<Lit>& assumps){ assumps.copyTo(assumptions); return solve_(); }
 inline bool     Solver::okay          ()      const   { return ok; }
 
-inline void        Solver::toDimacs     (const char* file){ vec<Lit> as; toDimacs(file, as); }
-inline void        Solver::toDimacs     (const char* file, Lit p){ vec<Lit> as; as.push(p); toDimacs(file, as); }
-inline void        Solver::toDimacs     (const char* file, Lit p, Lit q){ vec<Lit> as; as.push(p); as.push(q); toDimacs(file, as); }
-inline void        Solver::toDimacs     (const char* file, Lit p, Lit q, Lit r){ vec<Lit> as; as.push(p); as.push(q); as.push(r); toDimacs(file, as); }
-inline const Lit&  Solver::getAssumption(int i) { if (i>=assumptions.size() || i<0) return lit_Undef; return assumptions[i]; }
+inline void     Solver::toDimacs     (const char* file){ vec<Lit> as; toDimacs(file, as); }
+inline void     Solver::toDimacs     (const char* file, Lit p){ vec<Lit> as; as.push(p); toDimacs(file, as); }
+inline void     Solver::toDimacs     (const char* file, Lit p, Lit q){ vec<Lit> as; as.push(p); as.push(q); toDimacs(file, as); }
+inline void     Solver::toDimacs     (const char* file, Lit p, Lit q, Lit r){ vec<Lit> as; as.push(p); as.push(q); as.push(r); toDimacs(file, as); }
 
 
 //=================================================================================================

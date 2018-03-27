@@ -28,7 +28,6 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #include "utils/Options.h"
 #include "core/Dimacs.h"
 #include "core/Solver.h"
-#include "core/AssumMinimiser.h"
 
 using namespace Minisat;
 
@@ -82,18 +81,13 @@ int main(int argc, char** argv)
 #endif
         // Extra options:
         //
-        StringOption assum ("MAIN", "assum",  "If given, then the problem must be solved with the list of assumptions.");
         IntOption    verb   ("MAIN", "verb",   "Verbosity level (0=silent, 1=some, 2=more).", 1, IntRange(0, 2));
         IntOption    cpu_lim("MAIN", "cpu-lim","Limit on CPU time allowed in seconds.\n", INT32_MAX, IntRange(0, INT32_MAX));
         IntOption    mem_lim("MAIN", "mem-lim","Limit on memory usage in megabytes.\n", INT32_MAX, IntRange(0, INT32_MAX));
-        IntOption    minimizer
-		("MAIN", "alg", "Choose which minimization algorithm to use.\n0=Iterative Deletion, 1=Improved Iterative Deletion, 2=Iterative Insertion", 1, IntRange(0,2));
         
         parseOptions(argc, argv, true);
 
         Solver S;
-        vec<Lit> userAssum;
-
         double initial_time = cpuTime();
 
         S.verbosity = verb;
@@ -124,7 +118,7 @@ int main(int argc, char** argv)
                 if (setrlimit(RLIMIT_AS, &rl) == -1)
                     printf("WARNING! Could not set resource limit: Virtual memory.\n");
             } }
-
+        
         if (argc == 1)
             printf("Reading from standard input... Use '--help' for help.\n");
         
@@ -138,31 +132,11 @@ int main(int argc, char** argv)
         
         parse_DIMACS(in, S);
         gzclose(in);
-
-        gzFile assumFile = NULL;
-        if (assum)
-        {
-        	assumFile = gzopen(assum.getStr(), "rb");
-        	if(assumFile)
-        	{
-            	printf("|                           Adding assumptions!                               |\n");
-                parse_DIMACS_assumptions(assumFile, S.nVars(), userAssum);
-                gzclose(assumFile);
-        	} else {
-        		printf("ERROR! Could not open file: %s\n", assum.getStr()), exit(1);
-        	}
-        } else {
-        	printf("Error! No assumptions were given, nothing to minimize!\n");
-        	return 1;
-        }
-
-        FILE* outfile = (argc >= 3) ? fopen(argv[2], "wb") : NULL;
-
+        FILE* res = (argc >= 3) ? fopen(argv[2], "wb") : NULL;
+        
         if (S.verbosity > 0){
             printf("|  Number of variables:  %12d                                         |\n", S.nVars());
-            printf("|  Number of clauses:    %12d                                         |\n", S.nClauses());
-            printf("|  Number of assumptions:    %12d                                     |\n", userAssum.size());
-        }
+            printf("|  Number of clauses:    %12d                                         |\n", S.nClauses()); }
         
         double parsed_time = cpuTime();
         if (S.verbosity > 0){
@@ -175,79 +149,34 @@ int main(int argc, char** argv)
         signal(SIGXCPU,SIGINT_interrupt);
        
         if (!S.simplify()){
-            if (outfile != NULL) fprintf(outfile, "UNSAT without assumptions\nNothing to Minimize\n"), fclose(outfile);
+            if (res != NULL) fprintf(res, "UNSAT\n"), fclose(res);
             if (S.verbosity > 0){
                 printf("===============================================================================\n");
                 printf("Solved by unit propagation\n");
                 printStats(S);
                 printf("\n"); }
-            printf("UNSATISFIABLE without assumptions\nNothing to Minimize\n");
+            printf("UNSATISFIABLE\n");
             exit(20);
-        }
-        AssumMinimiser am(S, userAssum);
-        lbool ret = l_False;
-        vec<Lit> assumRes;
-        ret = am.isSatWithAssum();
-        if (ret == l_True)
-        {
-            if (outfile != NULL) {
-            	fprintf(outfile, "SAT out assumptions\nNothing to Minimize\n");
-            	fclose(outfile);
-            } else {
-            	printf("SAT out assumptions\nNothing to Minimize\n");
-            }
-            exit(20);
-        }
-        if (assum && ret == l_False)
-
-        {
-        	switch (minimizer)
-        	{
-        	case 0:
-        		printf("Using Iterative Deletion Algorithm for minimizing the conflicting set of assumptions\n");
-        		am.iterativeDel(assumRes);
-        		break;
-        	case 1:
-        		printf("Using Iterative Deletion Algorithm with MiniSAT's minimizer for minimizing the conflicting set of assumptions\n");
-        		am.iterativeDel2(assumRes);
-        		break;
-        	case 2:
-        		printf("Using Iterative Insertion Algorithm for minimizing the conflicting set of assumptions\n");
-        		am.iterativeIns(assumRes);
-        		break;
-        	default:
-        		printf("Internal error!\n");
-        		exit(1);
-        	}
         }
         
+        vec<Lit> dummy;
+        lbool ret = S.solveLimited(dummy);
         if (S.verbosity > 0){
             printStats(S);
-            printf("\n");
-        }
-        //printf(ret == l_True ? "SATISFIABLE\n" : ret == l_False ? "UNSATISFIABLE\n" : "INDETERMINATE\n");
-        if (outfile != NULL){
+            printf("\n"); }
+        printf(ret == l_True ? "SATISFIABLE\n" : ret == l_False ? "UNSATISFIABLE\n" : "INDETERMINATE\n");
+        if (res != NULL){
             if (ret == l_True){
-                fprintf(outfile, "SAT\nModel:\n");
+                fprintf(res, "SAT\n");
                 for (int i = 0; i < S.nVars(); i++)
                     if (S.model[i] != l_Undef)
-                        fprintf(outfile, "%s%s%d", (i==0)?"":" ", (S.model[i]==l_True)?"":"-", i+1);
-                fprintf(outfile, " 0\n");
-            }else if (ret == l_False) {
-                fprintf(outfile, "UNSAT\n");
-                /* if assumptions were passed and we got UNSAT,
-                 * then we'll print conflicting assumptions */
-                if(assum) {
-                    fprintf(outfile, "Conflicting Assumptions:\n");
-                	for (int i = 0; i < assumRes.size(); ++i) {
-                		fprintf(outfile, "%s%s", (i==0)?"":" ", assumRes[i].toString().c_str());
-                	}
-                    fprintf(outfile, " 0\n");
-                }
-            }
+                        fprintf(res, "%s%s%d", (i==0)?"":" ", (S.model[i]==l_True)?"":"-", i+1);
+                fprintf(res, " 0\n");
+            }else if (ret == l_False)
+                fprintf(res, "UNSAT\n");
             else
-                fprintf(outfile, "INDET\n");
-            fclose(outfile);
+                fprintf(res, "INDET\n");
+            fclose(res);
         }
         
 #ifdef NDEBUG
