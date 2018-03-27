@@ -214,9 +214,9 @@ class Map {
     {
     	globalIter = 0, perTableIter = 0;
     	assert(table);
-    	TRACE("Map full state: ");
-    	TRACE("          size: " << sz);
-    	TRACE("         table: " << table);
+    	//TRACE("Map full state: ");
+    	//TRACE("          size: " << sz);
+    	//TRACE("         table: " << table);
     	while (table[globalIter].size() == 0) globalIter++;
     	return &(table[globalIter][perTableIter++].key);
     }

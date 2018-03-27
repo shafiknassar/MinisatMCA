@@ -12,24 +12,24 @@
 #include "mtl/Queue.h"
 #include "mca/global_defs.h"
 
-#define INIT_ASSUM_BITMAP(bm)              \
-	do                                     \
-    {                                      \
-        bm.clear();                        \
-	    foreach (i, initAssum.size())      \
-        {                                  \
-            bm.insert(initAssum[i], true); \
-         }                                 \
+#define INIT_ASSUM_BITMAP(bm)                 \
+	do                                        \
+    {                                         \
+        bm.clear();                           \
+	    foreach (i, initAssum.size())         \
+        {                                     \
+            bm.insert(initAssum[i], l_Undef); \
+         }                                    \
     } while(0)
 
-#define INIT_ANTI_ASSUM_BITMAP(bm)         \
-	do                                     \
-    {                                      \
-        bm.clear();                        \
-	    foreach (i, initAssum.size())      \
-        {                                  \
-            bm.insert(~initAssum[i], true);\
-         }                                 \
+#define INIT_ANTI_ASSUM_BITMAP(bm)            \
+	do                                        \
+    {                                         \
+        bm.clear();                           \
+	    foreach (i, initAssum.size())         \
+        {                                     \
+            bm.insert(~initAssum[i], l_Undef);\
+         }                                    \
     } while(0)
 
 /*
@@ -69,7 +69,7 @@ public:
 	}
 };
 
-
+typedef Map<Lit, lbool, LitHash> lboolLitBitMap;
 typedef Map<Lit, bool, LitHash> LitBitMap;
 
 
@@ -153,7 +153,7 @@ vec<Lit>* getMutualAssumptionsInClauses(vec<vec<Lit>*>& clauses, vec<Lit>& assum
 class AssumMinimiser {
     Solver& s;
     vec<Lit>     initAssum; // Must not be edited after c'tor !!!
-    LitBitMap litBitMap;
+    lboolLitBitMap litBitMap;
 
     // TODO: add flags for solver limitations: yield after a certain number of conflicts, time, decisions...
 
@@ -233,7 +233,7 @@ public:
 
     void     PrintStats    () const;
 
-    bool   tryToRotate   (vec<lbool>& model, Lit assum, Lit& newVital);
+    bool   tryToRotate   (vec<lbool>& model, Lit assum, vec<Lit>& newVital);
 };
 
 void     AssumMinimiser::PrintStats    () const {
@@ -266,28 +266,31 @@ lbool    AssumMinimiser::solveWithAssum(vec<Lit>& assum) {
 
 void AssumMinimiser::litBitMapToVec(vec<Lit>& assum) {
 	foreach(i, initAssum.size()) {
-		if (litBitMap[initAssum[i]])
+		if (litBitMap[initAssum[i]] != l_False)
 			assum.push(initAssum[i]);
 	}
 }
 
 void AssumMinimiser::vecToLitBitMap(const vec<Lit>& assum) {
-    Lit negLit;
+    //Lit negLit;
     TRACE_START_FUNC;
     foreach(i, initAssum.size()) {
-		litBitMap[initAssum[i]] = false;
+    	if (!assum.contains(~initAssum[i])) {
+    		assert(litBitMap[initAssum[i]] != l_True);
+    		litBitMap[initAssum[i]] = l_False;
+    	}
 	}
     foreach(i, assum.size()) {
         TRACE(assum[i].toString());
     }
-    foreach(i, assum.size()) {
-    	/* minisat saves the literal negated,
-    	 * so we negate it back to get the right value. */
-        negLit = ~assum[i];
-	    TRACE("Adding Lit = " << negLit.toString());
-		assert(litBitMap.has(negLit));
-		litBitMap[negLit] = true;
-	}
+//    foreach(i, assum.size()) {
+//    	/* minisat saves the literal negated,
+//    	 * so we negate it back to get the right value. */
+//        negLit = ~assum[i];
+//	    TRACE("Adding Lit = " << negLit.toString());
+//		assert(litBitMap.has(negLit));
+//		litBitMap[negLit] = l_True;
+//	}
     TRACE_END_FUNC;
 }
 
@@ -360,15 +363,15 @@ void AssumMinimiser::iterativeDel2(vec<Lit> &result) {
     INIT_ASSUM_BITMAP(litBitMap);
 
     foreach(i, initAssum.size()) {
-        if(litBitMap[initAssum[i]] == false) continue;
-        litBitMap[initAssum[i]] = false;
+        if(litBitMap[initAssum[i]] == l_False) continue;
+        litBitMap[initAssum[i]] = l_False;
         TRACE("Removing " << initAssum[i].toString() << " from bitMap");
         litBitMapToVec(vecAssum);
         ret = solveWithAssum(vecAssum);
         if (ret == l_True) {
         	TRACE(initAssum[i].toString() << " is essential");
         	TRACE("Added it back to currAssum");
-            litBitMap[initAssum[i]] = true;
+            litBitMap[initAssum[i]] = l_True;
         } else {
         	TRACE(initAssum[i].toString() << " isn't essential" << std::endl
         			<< "Updating current assumptions");
@@ -385,7 +388,7 @@ void AssumMinimiser::rotationAlg(vec<Lit> &result) {
     lbool ret;
     result.clear(false);
     vec<Lit> vecAssum;
-    Lit newVitalAssum;
+    vec<Lit> newVitalAssums;
 
     TRACE_START_FUNC;
 
@@ -394,21 +397,25 @@ void AssumMinimiser::rotationAlg(vec<Lit> &result) {
     INIT_ASSUM_BITMAP(litBitMap);
 
     foreach(i, initAssum.size()) {
-        if(litBitMap[initAssum[i]] == false) continue;
-        litBitMap[initAssum[i]] = false;
+        if(litBitMap[initAssum[i]] != l_Undef) continue;
+        litBitMap[initAssum[i]] = l_False;
 
         TRACE("Removing " << initAssum[i].toString() << " from currAssum");
         // TODO: Maybe it would be more efficient to send in ~initAssum[i]?
         litBitMapToVec(vecAssum);
+        vecAssum.push(~initAssum[i]);
         ret = solveWithAssum(vecAssum);
         if (ret == l_True) {
         	TRACE(initAssum[i].toString() << " is vital");
         	TRACE("Added it back to currAssum");
-            litBitMap[initAssum[i]] = true;
-            newVitalAssum = lit_Undef;
-        	if (tryToRotate(this->s.model, initAssum[i], newVitalAssum))
+            litBitMap[initAssum[i]] = l_True;
+            newVitalAssums.clear();
+        	if (tryToRotate(this->s.model, initAssum[i], newVitalAssums))
         	{
-        		litBitMap[newVitalAssum] = true;
+        		foreach(j, newVitalAssums.size()) {
+        			TRACE("Marking as vital: " << newVitalAssums[j].toString());
+        		    litBitMap[newVitalAssums[j]] = l_True;
+        		}
         	}
         } else {
         	TRACE(initAssum[i].toString() << " isn't essential" << std::endl
@@ -454,7 +461,15 @@ void flipVarInModel(vec<lbool>& model, int var)
 	model[var] = ~model[var];
 }
 
+/* l's potential literals are defined to be the literals that are common to all
+ * clauses that contain l - including l itself */
+inline vec<Lit>* getPotentialLiterals(Lit lit, Solver& solver)
+{
+	vec<vec<Lit>*>  clausesContainingLit;
 
+	solver.getWeakClausesContaining(lit, clausesContainingLit);
+	return getMutualLiteralsInClauses(clausesContainingLit); //dynamic alloc
+}
 
 
 /*
@@ -465,23 +480,22 @@ void flipVarInModel(vec<lbool>& model, int var)
  *    * vitalAssum - the vital assumption, it must NOT hold under the current given model
  *    * newVital - output:
  * */
-bool   AssumMinimiser::tryToRotate   (vec<lbool>& model, Lit vitalAssum, Lit& newVital)
+bool   AssumMinimiser::tryToRotate   (vec<lbool>& model, Lit vitalAssum, vec<Lit>& newVitals)
 {
 	// Local variables
 	vec<vec<Lit>*>  clausesContainingVitAssum;
 	vec<vec<Lit>*>  clausesContainingBroker;
-	vec<Lit>*       pMutualLiterals             = NULL;
-	vec<Lit>*       pBrokerMutualLiterals       = NULL;
+	vec<Lit>        *pMutualLiterals            = NULL;
+	vec<Lit>        *pBrokerMutualLiterals      = NULL;
 	bool            res                         = false;
 	Lit             l                           = lit_Undef;
 	Lit             k                           = lit_Undef;
 
 	TRACE_START_FUNC;
 	// Initializing
-	newVital = lit_Undef;
-	s.getWeakClausesContaining(~vitalAssum, clausesContainingVitAssum);
-	pMutualLiterals =
-			getMutualLiteralsInClauses(clausesContainingVitAssum); // dynamic alloc
+	//newVital = lit_Undef;
+
+	pMutualLiterals = getPotentialLiterals(~vitalAssum, s); // dynamic alloc
 	/* original vital assumption must be flipped back
 	 * to the assignment in order to find new vitals */
 	/*flipOut*/flipVarInModel(model, var(vitalAssum));
@@ -501,11 +515,14 @@ bool   AssumMinimiser::tryToRotate   (vec<lbool>& model, Lit vitalAssum, Lit& ne
 	foreach(iL, pMutualLiterals->size())
 	{
 		l = (*pMutualLiterals)[iL];
-		// we don't want to mistake the old vital as a new vital
-		if (var(l) == var(vitalAssum)) continue;
+
+		if (var(l) == var(vitalAssum)) /* we don't want to mistake the old vital as a new vital */
+			continue;
 
 		if (isConfWithAssum(l))    // l is a potential newVital
 		{
+			/* we don't want to try an already determined assum */
+			if (litBitMap[~l] != l_Undef) continue;
 			/* flipping the new potential vital assumption out of the model*/
 			/*flipOut*/flipVarInModel(model, var(l));
 			TRACE("Found a potential vital: " << l.toString());
@@ -513,9 +530,9 @@ bool   AssumMinimiser::tryToRotate   (vec<lbool>& model, Lit vitalAssum, Lit& ne
 			{
 				/* remember that l is conflicting with
 				 * the assumptions, so ~l is an assumption */
-				newVital = ~l;
+				newVitals.push(~l);
 				res = true;
-				goto CLEANUP;
+				//goto CLEANUP;
 			}
 		}
 		else    // l is a potential broker
@@ -524,11 +541,9 @@ bool   AssumMinimiser::tryToRotate   (vec<lbool>& model, Lit vitalAssum, Lit& ne
 
 			/* similar to what we did to vitalAssum
 			 * l is only a broker */
-			s.getWeakClausesContaining(~l, clausesContainingBroker);
-			pBrokerMutualLiterals =
-					getMutualLiteralsInClauses(clausesContainingBroker); //dynamic alloc
+			pBrokerMutualLiterals = getPotentialLiterals(~l, s); //dynamic alloc
 			TRACE("Mutual Literals are: " << pBrokerMutualLiterals->toString());
-			/* flipping the new potential vital assumption out of the model*/
+			/* flipping the new potential broker out of the model*/
 			/*flipOut*/flipVarInModel(model, var(l));
 			if (pBrokerMutualLiterals->size() > 1)
 			{
@@ -547,10 +562,10 @@ bool   AssumMinimiser::tryToRotate   (vec<lbool>& model, Lit vitalAssum, Lit& ne
 						/*flipOut*/flipVarInModel(model, var(k));
 						if (s.checkIfModel(model))
 						{
-							newVital = ~k;
+							newVitals.push(~k);
 							res = true;
-							delete pBrokerMutualLiterals;
-							goto CLEANUP;
+							//delete pBrokerMutualLiterals;
+							//goto CLEANUP;
 						}
 						/*flipIn*/flipVarInModel(model, var(k));
 					}
@@ -565,8 +580,8 @@ bool   AssumMinimiser::tryToRotate   (vec<lbool>& model, Lit vitalAssum, Lit& ne
 CLEANUP:
 /*flipIn*/flipVarInModel(model, var(vitalAssum));
     delete pMutualLiterals;
-    if (res) TRACE("FOUND VITAL ASSUMPTION: " << newVital.toString());
-    else     TRACE("NO NEW VITAL FOUND");
+    if (res) { TRACE("FOUND VITAL ASSUMPTION(S): " << newVitals.toString()); }
+    else     { TRACE("NO NEW VITAL FOUND");                              }
     TRACE_END_FUNC;
     return res;
 }

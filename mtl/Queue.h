@@ -22,7 +22,7 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #define Minisat_Queue_h
 
 #include "mtl/Vec.h"
-#include "core/global_defs.h"
+#include "mca/global_defs.h"
 
 namespace Minisat {
 
