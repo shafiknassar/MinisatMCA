@@ -11,6 +11,7 @@
 #include "mca/Solver.h"
 #include "mtl/Queue.h"
 #include "mca/global_defs.h"
+#include "mtl/Stack.h"
 
 #define INIT_ASSUM_BITMAP(bm)                 \
 	do                                        \
@@ -71,6 +72,21 @@ public:
 
 typedef Map<Lit, lbool, LitHash> lboolLitBitMap;
 typedef Map<Lit, bool, LitHash> LitBitMap;
+
+#define ASSUM          1
+#define IN_STACK       2
+#define VITALITY_KNOWN 4 // if this bit is set to 0, then the next bit is irrelevant
+#define VITAL          8
+struct VarMetaData
+{
+	char c;
+	bool isAssum()         { return c & ASSUM; }
+	bool isInStack()       { return c & IN_STACK; }
+	bool isVitalityKnown() { return c & VITALITY_KNOWN; }
+	bool isVital()         { return c & VITAL & VITALITY_KNOWN; }
+};
+
+
 
 
 // Returns a vec<Lit> that contains all mutual literals in all the given clauses
@@ -233,7 +249,14 @@ public:
 
     void     PrintStats    () const;
 
-    bool   tryToRotate   (vec<lbool>& model, Lit assum, vec<Lit>& newVital);
+    bool     tryToRotate   (vec<lbool>& model, Lit vitalAssum, vec<Lit>& newVitals);
+
+    bool     recursiveTryToRotate
+	                       (vec<lbool>& model,
+	                        Lit assum,
+							vec<Lit>& newVital,
+							int recursionDepth);
+;
 };
 
 void     AssumMinimiser::PrintStats    () const {
@@ -564,6 +587,7 @@ bool   AssumMinimiser::tryToRotate   (vec<lbool>& model, Lit vitalAssum, vec<Lit
 						{
 							newVitals.push(~k);
 							res = true;
+							litBitMap[~k] = l_True;
 							//delete pBrokerMutualLiterals;
 							//goto CLEANUP;
 						}
@@ -586,7 +610,56 @@ CLEANUP:
     return res;
 }
 
+bool AssumMinimiser::recursiveTryToRotate (
+		vec<lbool>& model,
+		Lit pivot,
+		vec<Lit>& newVitals,
+		int recursionDepth)
+{
+	// Local variables
+	Stack<Lit>      stack(recursionDepth);     // this stack is used to make the recursion
+	vec<vec<Lit>*>  clausesContainingVitAssum;
+	vec<Lit>        *pMutualLiterals            = NULL;
+	bool            res                         = false;
+	Lit             l                           = lit_Undef;
 
+	//stack.push(assum);
+
+	pMutualLiterals = getPotentialLiterals(~pivot, s); //dynamic alloc
+	foreach(iL, pMutualLiterals->size())
+	{
+		l = (*pMutualLiterals)[iL];
+
+		if (var(l) == var(pivot)) /* we don't want to mistake the old vital as a new vital */
+			continue;
+
+		/*flipOut*/flipVarInModel(model, var(l));
+
+		if (isConfWithAssum(l))    // l is a potential newVital
+		{
+			/* we don't want to try an already determined assum */
+			if (litBitMap[~l] != l_Undef) continue; // TODO: identify already visited literals, not just assumptions
+
+			TRACE("Found a potential vital: " << l.toString());
+			if (s.checkIfModel(model))
+			{
+				/* remember that l is conflicting with
+				 * the assumptions, so ~l is an assumption */
+				newVitals.push(~l);
+				litBitMap[~l] = l_True;
+				res = true;
+			}
+		}
+		/* TODO: recursion can be flattened out
+		 * by using a stack and computing every literal's
+		 * "potential literals" just once! */
+		res = res ||
+				recursiveTryToRotate(model, l, newVitals, recursionDepth-1);
+		/*flipIn*/flipVarInModel(model, var(l));
+	}
+	delete pMutualLiterals;
+	return res;
+}
 
 
 
