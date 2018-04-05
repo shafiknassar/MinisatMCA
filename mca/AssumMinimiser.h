@@ -56,6 +56,14 @@
 	X(rnd_decisions),      \
 	X(propagations)        \
 
+#define SOLVE_WITH_TIMER(retValue, assum)               \
+    double startTime = cpuTime();             \
+    retValue = s.solveLimited(assum);        \
+    double totalTime = cpuTime() - startTime; \
+
+#define UPDATE_STATS(SAT_UNSAT)      \
+    n##SAT_UNSAT++;                  \
+    cpuTime##SAT_UNSAT += totalTime; \
 
 namespace Minisat {
 
@@ -184,6 +192,8 @@ class AssumMinimiser {
     //Statistics TODO might want to add run times for SAT, UNSAT separately
     int             nSAT,
 	                nUNSAT;
+    double          cpuTimeSAT,
+                    cpuTimeUNSAT;
     int             nSolveCalls() const         { return nSAT+nUNSAT; }
     lbool           isSatWith,
 	                isSatWo;         //specifies if the formula is sat without assum
@@ -242,6 +252,7 @@ public:
     	curr_cpu_time = total_cpu_time = 0;
         initAssum.copyFrom(assum);
         nSAT = nUNSAT = 0;
+        cpuTimeSAT = cpuTimeUNSAT = 0;
         isSatWith = isSatWo = l_Undef;
         verbosity = s.verbosity;
         litBitMap.clear();
@@ -316,9 +327,11 @@ public:
 void     AssumMinimiser::PrintStats    () const {
 	printf("\n\n Total Statistics:\n\n");
 	printSolverStats(s);
-	printf("num of SAT calls      : %d\n", nSAT);
-	printf("num of UNSAT calls    : %d\n", nUNSAT);
-	printf("total calls           : %d\n", nSolveCalls());
+	printf("num of SAT calls           : %d\n", nSAT);
+	printf("num of UNSAT calls         : %d\n", nUNSAT);
+	printf("total calls                : %d\n", nSolveCalls());
+    printf("cpu time of SAT calls      : %.3f\n", cpuTimeSAT);
+    printf("cpu time of UNSAT calls    : %.3f\n", cpuTimeUNSAT);
 }
 
 lbool    AssumMinimiser::solveWithAssum(vec<Lit>& assum) {
@@ -328,14 +341,14 @@ lbool    AssumMinimiser::solveWithAssum(vec<Lit>& assum) {
     {
     	return isSatWoAssum();
     }
-    ret = s.solveLimited(assum);
+    SOLVE_WITH_TIMER(ret, assum);
     TRACE("Solving ended");
     if (ret == l_True) {
         TRACE("SAT");
-        nSAT++;
+        UPDATE_STATS(SAT);
     } else {
         TRACE("UNSAT");
-        nUNSAT++;
+        UPDATE_STATS(UNSAT);
     }
     printCurrentStats();
     return ret;
@@ -373,12 +386,12 @@ void AssumMinimiser::vecToLitBitMap(const vec<Lit>& assum) {
 
 lbool AssumMinimiser::isSatWithAssum() {
     if (isSatWith == l_Undef) {
-        isSatWith = s.solveLimited(initAssum);
+        SOLVE_WITH_TIMER(isSatWith, initAssum);
         if (isSatWith == l_True){
         	isSatWo = l_True;
-        	nSAT++;
+            UPDATE_STATS(SAT);
         } else {
-        	nUNSAT++;
+            UPDATE_STATS(UNSAT);
         }
         printCurrentStats();
     }
@@ -389,12 +402,12 @@ lbool AssumMinimiser::isSatWithAssum() {
 
 lbool AssumMinimiser::isSatWoAssum() {
     if (isSatWo == l_Undef) {
-        isSatWo = s.solveLimited(vec<Lit>());
+        SOLVE_WITH_TIMER(isSatWo, vec<Lit>());
         if (isSatWo == l_False) {
-        	isSatWith = l_False;
-        	nUNSAT++;
+            isSatWith = l_False;
+            UPDATE_STATS(UNSAT);
         } else {
-        	nSAT++;
+            UPDATE_STATS(SAT);
         }
         printCurrentStats();
     }
@@ -793,11 +806,11 @@ void AssumMinimiser::printCurrentStats()
 
     curr_cpu_time = cpuTime() - total_cpu_time;
     total_cpu_time = cpuTime();
-    printf("restarts              : %"PRIu64"\n", curr_starts);
-    printf("conflicts             : %-12"PRIu64"   (%.0f /sec)\n", curr_conflicts   , curr_conflicts   /curr_cpu_time);
-    printf("decisions             : %-12"PRIu64"   (%4.2f %% random) (%.0f /sec)\n", curr_decisions, (float)curr_rnd_decisions*100 / (float)curr_decisions, curr_decisions   /curr_cpu_time);
-    printf("propagations          : %-12"PRIu64"   (%.0f /sec)\n", curr_propagations, curr_propagations/curr_cpu_time);
-    printf("CPU time              : %g s\n", curr_cpu_time);
+    printf("restarts                   : %"PRIu64"\n", curr_starts);
+    printf("conflicts                  : %-12"PRIu64"   (%.0f /sec)\n", curr_conflicts   , curr_conflicts   /curr_cpu_time);
+    printf("decisions                  : %-12"PRIu64"   (%4.2f %% random) (%.0f /sec)\n", curr_decisions, (float)curr_rnd_decisions*100 / (float)curr_decisions, curr_decisions   /curr_cpu_time);
+    printf("propagations               : %-12"PRIu64"   (%.0f /sec)\n", curr_propagations, curr_propagations/curr_cpu_time);
+    printf("CPU time                   : %g s\n", curr_cpu_time);
 }
 
 
