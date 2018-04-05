@@ -978,15 +978,13 @@ bool    Solver::checkIfModel(vec<lbool>& inAssign)
 
 void Solver::getClausesContaining(Lit p, vec<vec<Lit>*>& res) {
 	TRACE_START_FUNC;
-	TRACE("Finding all clauses Containing " << p.toString());
+	res.clear();
     foreach(i, this->clauses.size()) {
-        vec<Lit> *pCurrClause = ca[clauses[i]].toVec();
-        TRACE("Checking clause: " << pCurrClause->toString() << " i = " << i);
-        if ((*pCurrClause).contains(p)) {
-        	TRACE("Clause contains literal");
-            res.push(pCurrClause);
-        } else {
-        	TRACE("Clause doesn't contain literal");
+        Clause& currClause = ca[clauses[i]];
+        TRACE("Checking clause: " << currClause.toString() << " i = " << i);
+        if (currClause.contains(p)) {
+        	TRACE("    Added!");
+            res.push(currClause.toVec());
         }
     }
     TRACE_END_FUNC;
@@ -999,6 +997,7 @@ void Solver::getClausesContaining(Lit p, vec<vec<Lit>*>& res) {
  */
 void Solver::getWeakClausesContaining (Lit p, vec<vec<Lit>*>& res) {
 	TRACE_START_FUNC;
+	res.clear();
     this->assigns[var(p)] = ~this->assigns[var(p)];
     foreach(i, this->clauses.size()) {
         Clause& currClause = ca[clauses[i]];

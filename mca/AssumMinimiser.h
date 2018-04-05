@@ -71,19 +71,27 @@ public:
 };
 
 typedef Map<Lit, lbool, LitHash> lboolLitBitMap;
-typedef Map<Lit, bool, LitHash> LitBitMap;
+typedef Map<Lit, bool, LitHash>  LitBitMap;
+typedef vec<Lit>                 sClause;  /* note that our definition of clause
+                                           * is different from that of minisat */
 
 #define ASSUM          1
 #define IN_STACK       2
-#define VITALITY_KNOWN 4 // if this bit is set to 0, then the next bit is irrelevant
+#define VITALITY_KNOWN 4
 #define VITAL          8
 struct VarMetaData
 {
-	char c;
-	bool isAssum()         { return c & ASSUM; }
-	bool isInStack()       { return c & IN_STACK; }
-	bool isVitalityKnown() { return c & VITALITY_KNOWN; }
-	bool isVital()         { return c & VITAL & VITALITY_KNOWN; }
+	unsigned int  assum         : 1; // if this bit is set to 0, then the next bit is irrelevant
+	unsigned int  assumedTrue   : 1;
+	unsigned int  posDiscovered : 1; // if both discovered flags are 0, then index is irrelevant
+	unsigned int  negDiscovered : 1; // if both discovered flags are 0, then index is irrelevant
+	unsigned int  posInStack    : 1;
+	unsigned int  negInStack    : 1;
+	unsigned int  knownVitality : 1; // if this bit is set to 0, then the next bit is irrelevant
+	unsigned int  vital         : 1;
+	/* this limits the number of variables to 2**27 ~ 128M
+	 * so we should still be fine */
+	unsigned int  index         : 24; // negatedV/varsMutualLiterals
 };
 
 
@@ -167,20 +175,29 @@ vec<Lit>* getMutualAssumptionsInClauses(vec<vec<Lit>*>& clauses, vec<Lit>& assum
 }
 
 class AssumMinimiser {
-    Solver& s;
-    vec<Lit>     initAssum; // Must not be edited after c'tor !!!
-    lboolLitBitMap litBitMap;
+    Solver&         s;
+    vec<Lit>        initAssum; // Must not be edited after c'tor !!!
+    lboolLitBitMap  litBitMap;
 
     // TODO: add flags for solver limitations: yield after a certain number of conflicts, time, decisions...
 
     //Statistics TODO might want to add run times for SAT, UNSAT separately
-    int          nSAT, nUNSAT;
-    int          nSolveCalls() const         { return nSAT+nUNSAT; }
-    lbool        isSatWith, isSatWo;         //specifies if the formula is sat w/o assum
+    int             nSAT,
+	                nUNSAT;
+    int             nSolveCalls() const         { return nSAT+nUNSAT; }
+    lbool           isSatWith,
+	                isSatWo;         //specifies if the formula is sat without assum
+
+    VarMetaData        *vars;
+	vec<vec<Lit>*>  posVarClauses;
+	vec<vec<Lit>*>  negVarClauses;
+
+	int             rotDepth;
+
     // TODO statistics for per SAT, UNSAT (cpu_time), initial run.
     // assumptions progress along the way and in the end.
 
-    int verbosity;
+    int          verbosity;
     // TODO find a way to print how many assumptions were minimized
     // TODO global timeout
 
@@ -205,16 +222,20 @@ class AssumMinimiser {
     //INVARIANT: same as previous method + assum is created by minisat!
     void 		 vecToLitBitMap(const vec<Lit>& assum);
 
-    bool         isAssum(Lit l) {
+    bool         isAssum(Lit l) { /* TODO: can be modified to use VarMetaData */
     	foreach(i, initAssum.size()) if (initAssum[i] == l) return true; return false;
     }
     bool         isConfWithAssum(Lit l) { return isAssum(~l); }
 
 
+
 public:
 
     AssumMinimiser(Solver& s, vec<Lit>& assum) : s(s), initAssum(), isSatWith(l_Undef),
-                                                 isSatWo(l_Undef) {
+                                                 isSatWo(l_Undef), vars(NULL),
+												 posVarClauses(), negVarClauses(),
+												 rotDepth(100)
+    {
 #define X(s) curr_##s = 0, total_##s = 0
     	SOLVER_STATS_TABLE;
 #undef X
@@ -224,8 +245,41 @@ public:
         isSatWith = isSatWo = l_Undef;
         verbosity = s.verbosity;
         litBitMap.clear();
+        vars = new VarMetaData[s.nVars()](); // operator () at the end initializes the arr to zero
+        foreach(a, initAssum.size())
+       	{
+            vars[var(initAssum[a])].assum = 1;
+            vars[var(initAssum[a])].assumedTrue =
+            		!sign(initAssum[a]); /* sign returns true if var is negated */
+        }
         TRACE("Init assums are: " << initAssum.toString());
     }
+
+    bool isVarMarked(Var v)
+    {
+    	return vars[v].posDiscovered || vars[v].negDiscovered;
+    }
+    bool isLitMarked(Lit l)
+    {
+    	Var v = var(l);
+    	return (sign(l) && vars[v].negDiscovered)
+    			|| (!sign(l) && vars[v].posDiscovered);
+    }
+    bool isLitInStack(Lit l)
+    {
+    	Var v = var(l);
+    	return (sign(l) && vars[v].negInStack)
+    			|| (!sign(l) && vars[v].posInStack);
+    }
+    /*
+     * The process of Exploring the literal is defined as follows:
+     * 		* turn the appropriate discovered flag for the variable.
+     * 		* a vec<Lit> is allocated for this literal,
+     * 			to add the potential literals under the current assignment
+     * */
+    void markLit(Lit l);
+
+    void unmarkLit(Lit l);
 
     /** These two methods checks if the formula is SAT with and without the assumptions
      * respectively, if it's SAT with the assumptions or UNSAT without the assumptions, then
@@ -433,7 +487,7 @@ void AssumMinimiser::rotationAlg(vec<Lit> &result) {
         	TRACE("Added it back to currAssum");
             litBitMap[initAssum[i]] = l_True;
             newVitalAssums.clear();
-        	if (tryToRotate(this->s.model, initAssum[i], newVitalAssums))
+        	if (recursiveTryToRotate(this->s.model, initAssum[i], newVitalAssums, rotDepth))
         	{
         		foreach(j, newVitalAssums.size()) {
         			TRACE("Marking as vital: " << newVitalAssums[j].toString());
@@ -625,12 +679,13 @@ bool AssumMinimiser::recursiveTryToRotate (
 
 	//stack.push(assum);
 
-	pMutualLiterals = getPotentialLiterals(~pivot, s); //dynamic alloc
+	markLit(pivot);
+	pMutualLiterals = getPotentialLiterals(~pivot, s); // dynamic alloc
 	foreach(iL, pMutualLiterals->size())
 	{
 		l = (*pMutualLiterals)[iL];
 
-		if (var(l) == var(pivot)) /* we don't want to mistake the old vital as a new vital */
+		if (isLitMarked(l)) /* we don't want to visit  */
 			continue;
 
 		/*flipOut*/flipVarInModel(model, var(l));
@@ -650,6 +705,7 @@ bool AssumMinimiser::recursiveTryToRotate (
 				res = true;
 			}
 		}
+
 		/* TODO: recursion can be flattened out
 		 * by using a stack and computing every literal's
 		 * "potential literals" just once! */
@@ -657,10 +713,50 @@ bool AssumMinimiser::recursiveTryToRotate (
 				recursiveTryToRotate(model, l, newVitals, recursionDepth-1);
 		/*flipIn*/flipVarInModel(model, var(l));
 	}
+	unmarkLit(pivot);
 	delete pMutualLiterals;
 	return res;
 }
 
+void AssumMinimiser::markLit(Lit l)
+{
+	Var v = var(l);
+	assert (!isLitMarked(l));
+	if (!isVarMarked(v))
+	{
+		negVarClauses.push(NULL);
+		posVarClauses.push(NULL);
+		assert (negVarClauses.size() == posVarClauses.size());
+		vars[v].index = negVarClauses.size() - 1;
+	}
+	if (sign(l))
+		vars[v].negDiscovered = 1;
+	else
+		vars[v].posDiscovered = 1;
+}
+
+void AssumMinimiser::unmarkLit(Lit l)
+{
+	Var v = var(l);
+	assert (isVarMarked(v));
+	assert (isLitMarked(l));
+
+	if (sign(l))
+	{
+		vars[v].negDiscovered = 0;
+	} else
+	{
+		vars[v].posDiscovered = 0;
+	}
+	if (!vars[v].negDiscovered && !vars[v].posDiscovered)
+	{
+		assert (negVarClauses.size() == posVarClauses.size() == v+1);
+		delete negVarClauses[v];
+		negVarClauses.pop();
+		delete posVarClauses[v];
+		posVarClauses.pop();
+	}
+}
 
 
 
