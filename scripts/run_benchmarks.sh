@@ -25,7 +25,6 @@ fi
 
 #remove repetetion in algs
 uniq_algs=($(echo "${algs[@]}" | tr ' ' '\n' | sort -u | tr '\n' ' '))
-echo "${uniq_algs[*]}"
 
 #Compile mca
 cd $MROOT/mca
@@ -40,9 +39,9 @@ fi
 cd - > /dev/null
 
 #Create out dir
-rm -rf $MROOT/bench_output
-mkdir $MROOT/bench_output
-out_dir=$MROOT/bench_output
+rm -rf $MROOT/benchmarks_output
+mkdir $MROOT/benchmarks_output
+out_dir=$MROOT/benchmarks_output
 
 
 #Run the benchmarks for the wanted algorithms
@@ -51,6 +50,6 @@ for alg in "${algs[@]}"; do
         formula=$file
         assum="${file::-4}.assum"
         filename=$(basename "$file")
-        echo $MROOT/mca/mca $formula $out_dir/${filename::-4}_alg$i.out -assum=$assum -alg=$alg
+        $MROOT/mca/mca $formula $out_dir/${filename::-4}_alg$alg.assum -assum=$assum -alg=$alg > $out_dir/${filename::-4}_alg$alg.out
     done
 done
