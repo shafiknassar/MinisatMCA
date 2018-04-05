@@ -678,24 +678,29 @@ bool AssumMinimiser::recursiveTryToRotate (
 	Lit             l                           = lit_Undef;
 
 	//stack.push(assum);
+	TRACE_START_FUNC;
 
 	markLit(pivot);
 	pMutualLiterals = getPotentialLiterals(~pivot, s); // dynamic alloc
+	TRACE("Pivot is: " << pivot.toString());
+	/*flipOut*/flipVarInModel(model, var(pivot));
 	foreach(iL, pMutualLiterals->size())
 	{
 		l = (*pMutualLiterals)[iL];
+		TRACE("Found mutual lit: " << l.toString());
 
-		if (isLitMarked(l)) /* we don't want to visit  */
+		if (isVarMarked(var(l))) /* we don't want to visit variable
+		                         * that's already in the recursion stack */
 			continue;
-
-		/*flipOut*/flipVarInModel(model, var(l));
 
 		if (isConfWithAssum(l))    // l is a potential newVital
 		{
 			/* we don't want to try an already determined assum */
 			if (litBitMap[~l] != l_Undef) continue; // TODO: identify already visited literals, not just assumptions
 
-			TRACE("Found a potential vital: " << l.toString());
+			/*flipOut*/flipVarInModel(model, var(l));
+
+			TRACE("Found a potential vital: " << (~l).toString());
 			if (s.checkIfModel(model))
 			{
 				/* remember that l is conflicting with
@@ -704,6 +709,8 @@ bool AssumMinimiser::recursiveTryToRotate (
 				litBitMap[~l] = l_True;
 				res = true;
 			}
+			/*flipIn*/flipVarInModel(model, var(l));
+
 		}
 
 		/* TODO: recursion can be flattened out
@@ -711,16 +718,18 @@ bool AssumMinimiser::recursiveTryToRotate (
 		 * "potential literals" just once! */
 		res = res ||
 				recursiveTryToRotate(model, l, newVitals, recursionDepth-1);
-		/*flipIn*/flipVarInModel(model, var(l));
 	}
+	/*flipIn*/flipVarInModel(model, var(pivot));
 	unmarkLit(pivot);
 	delete pMutualLiterals;
+	TRACE_END_FUNC;
 	return res;
 }
 
 void AssumMinimiser::markLit(Lit l)
 {
 	Var v = var(l);
+	TRACE("Marking: " << l.toString());
 	assert (!isLitMarked(l));
 	if (!isVarMarked(v))
 	{
@@ -738,8 +747,11 @@ void AssumMinimiser::markLit(Lit l)
 void AssumMinimiser::unmarkLit(Lit l)
 {
 	Var v = var(l);
+	int index;
+	TRACE("Unmarking: " << l.toString());
 	assert (isVarMarked(v));
 	assert (isLitMarked(l));
+	index = vars[v].index;
 
 	if (sign(l))
 	{
@@ -750,10 +762,13 @@ void AssumMinimiser::unmarkLit(Lit l)
 	}
 	if (!vars[v].negDiscovered && !vars[v].posDiscovered)
 	{
-		assert (negVarClauses.size() == posVarClauses.size() == v+1);
-		delete negVarClauses[v];
+		TRACE("n: " << negVarClauses.size() << " p: " << posVarClauses.size() << " v: "  << v
+				<< " idx: " << index);
+		assert (negVarClauses.size() == posVarClauses.size());
+		assert (negVarClauses.size() == index + 1);
+		delete negVarClauses[index];
 		negVarClauses.pop();
-		delete posVarClauses[v];
+		delete posVarClauses[index];
 		posVarClauses.pop();
 	}
 }
