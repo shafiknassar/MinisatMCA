@@ -679,6 +679,8 @@ bool AssumMinimiser::recursiveTryToRotate (
 
 	//stack.push(assum);
 	TRACE_START_FUNC;
+	if (0 == recursionDepth)
+		return false;
 
 	markLit(pivot);
 	pMutualLiterals = getPotentialLiterals(~pivot, s); // dynamic alloc
