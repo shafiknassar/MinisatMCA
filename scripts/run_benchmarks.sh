@@ -43,6 +43,7 @@ rm -rf $MROOT/benchmarks_output
 mkdir $MROOT/benchmarks_output
 out_dir=$MROOT/benchmarks_output
 
+rot_arr=('Iterative Deletion' 'Iterative Deletion Algorithm with MiniSAT minimization' 'Iterative Insertion' 'Rotation')
 
 #Run the benchmarks for the wanted algorithms
 for alg in "${algs[@]}"; do
@@ -50,6 +51,9 @@ for alg in "${algs[@]}"; do
         formula=$file
         assum="${file::-4}.assum"
         filename=$(basename "$file")
-        $MROOT/mca/mca $formula $out_dir/${filename::-4}_alg$alg.assum -assum=$assum -alg=$alg > $out_dir/${filename::-4}_alg$alg.out
+        query_num=${filename::-4}
+        echo Running $query_num with ${rot_arr[${alg}-1]} algorithm > $out_dir/${query_num}_alg${alg}.out
+        echo >> $out_dir/${query_num}_alg${alg}.out
+        $MROOT/mca/mca $formula $out_dir/${query_num}_alg${alg}.assum -assum=$assum -alg=$alg >> $out_dir/${query_num}_alg${alg}.out
     done
 done

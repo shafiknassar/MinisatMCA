@@ -235,22 +235,21 @@ int main(int argc, char** argv)
                 /* if assumptions were passed and we got UNSAT,
                  * then we'll print conflicting assumptions */
                 if(assum) {
-                    fprintf(outfile, "Conflicting Assumptions:\n");
+                    fprintf(outfile, "Conflicting Assumptions, size=%d:\n", assumRes.size());
                 	for (int i = 0; i < assumRes.size(); ++i) {
-                		fprintf(outfile, "%s%s", (i==0)?"":" ", assumRes[i].toString().c_str());
+                		fprintf(outfile, "%s\n", assumRes[i].toString().c_str());
                 	}
-                    fprintf(outfile, " 0\n");
+//                    fprintf(outfile, " 0\n");
                 }
             }
             else //ret == l_Undef
                 fprintf(outfile, "INDET\n");
             fclose(outfile);
-        } else {
-        	printf("Conflicting Assumptions:\n");
+        } else if (assum){
+            printf("Conflicting Assumptions:\n");
         	for (int i = 0; i < assumRes.size(); ++i) {
-        	    printf("%s%s", (i==0)?"":" ", assumRes[i].toString().c_str());
+        	    printf("%s\n", assumRes[i].toString().c_str());
         	}
-        	printf(" 0\n");
         }
         
 #ifdef NDEBUG
