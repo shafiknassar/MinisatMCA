@@ -13,7 +13,7 @@
 \usepackage{amsmath}
 \usepackage{cite}
 \usepackage{xcolor}
-%\newtheorem{theorem}{Theorem}
+\newtheorem{theorem}{Theorem}
 %\newtheorem{lemma}{Lemma}
 %\newtheorem{definition}{Definition}
 %\newtheorem{claim}{Claim}
@@ -61,6 +61,41 @@ This was a very important motivation when designing the algorithms presented in 
 
 
 \subsection{Introduction to SAT-Solving}
+	\paragraph{History}
+	\begin{itemize}
+		\item 1960 The first SAT solving algorithm DP ( Davis, Putnam), originally for checking the validity of a first-order logic formula
+		\item 1962 An improved version of DP – DPLL, the basis for almost all modern SAT-solvers
+		\item 1971 SAT is proved to be the first NP-Complete problem, an important milestone to CS theory
+		\item 1992 Local Search SAT solving
+		\item 1992 The First International SAT Competition, followed by 1993, 1996, since 2002 every year
+		\item 1996 Conflict Driven Clause Learning
+		\item 1996 The First International SAT Conference (Workshop), followed by 1998, since 2000 every year
+	\end{itemize}
+
+	\paragraph{SAT Solving applications}
+	\begin{itemize}
+		\item Hardware Model Checking - all major hardware companies use SAT solvers to verify their design, additionally there are many companies which specializes in developing SAT solving tools to be used in hardware verification.
+		\item Software Verification - used for verifying embedded systems in cars, airplanes, refrigerators etc. usually not over-complexed software.
+		\item Automated Planning and Scheduling in Artificial Intelligence - still one of the best approaches for optimal planning.
+	\end{itemize}
+
+	As mentioned before, SAT is a NP-Complete problem, and therefore all the known complete algorithms have exponential runtime in the worst case. As showed before it has different uses in many fields, thus optimizing the solvers for this problem has a direct affect on the technological advancement of our world. The basic techniques of SAT solving are discussed next.
+	\pagebreak
+	\paragraph{The Resolution Rule} Given the two clauses $ (I \lor x_1 \lor x_2 \lor ... \lor x_n)  \land (\bar{I} \lor y_1 \lor y_2 \lor ... \lor y_m)$ the \textit{Resolvent} clause is $ (x_1 \lor x_2 \lor ... \lor x_n \lor y_1 \lor y_2 \lor ... \lor y_m) $. \\ \\
+	Special cases
+	\begin{itemize}
+		\item Tautological Resolvent: $ R((x_1 \lor x_2), (\bar{x_1} \lor \bar{x_2})) = True $
+		\item Empty clause: $ R((x_1), (\bar{x_1})) = \bot $
+	\end{itemize}
+
+
+	\begin{theorem}
+		Resolution maintains satisfiability\\
+		Given $ \mathcal{F} $ and $ \mathcal{C}_1, \mathcal{C}_2 $ two of it's clauses with a pair complementary literals, then $ \mathcal{F} $ is satisfiable if and only if $ \mathcal{F} \land R(\mathcal{C}_1, \mathcal{C}_2) $ is satisfiable.
+	\end{theorem}
+	Based on $\textbf{Theorem 1}$, if the empty clause $\bot$ is resolved, the original formula is unsatisfiable. So, the Resolution rule may be used to proof the unsatisfiability of a formula.
+	Saturation algorithm:
+  
 \subsubsection{DPLL}
 \subsubsection{CDCL}
 \subsection{Minimal set of Conflicting Assumptions}
