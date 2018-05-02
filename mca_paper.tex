@@ -10,12 +10,19 @@
 
 \begin{abstract}
 
+The \textit{Boolean Satisfiability Problem} (SAT), archetypical NP-Complete, is the problem of determining whether a given boolean formula, usually \textit{CNF}, has a satisfying \textit{assignment}. In addition to the theoretical interest SAT draws, it has many modern-day applications in different fields, most notably hardware verification, with SAT-solvers playing an integral part in Bounded Checking Model, for example.\\
+Modern uses require solving SAT instances under given \textit{assumptions}, i.e. partial assignment to the formula's variables. Furthermore, if the instance is \textit{unsatisfiable} under the assumptions, it is interesting to compute a \textit{minimal set of conflicting assumptions}.\\
+Any algorithm that computes minimal sets of conflicting assumptions, makes several SAT-solver calls under different assumptions. In this paper, we present algorithms that aim to reduce the number of SAT-solver calls by gathering as much information as possible per call.
+
 \end{abstract}
 
+\pagebreak
 \tableofcontents
+\pagebreak
 
 \section{Introduction}
 \subsection{Introduction to SAT}
+\paragraph{Definitions}
 \subsection{Introduction to SAT-Solving}
 \subsubsection{DPLL}
 \subsubsection{CDCL}
