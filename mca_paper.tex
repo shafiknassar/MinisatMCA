@@ -13,6 +13,7 @@
 \usepackage{amsmath}
 \usepackage{cite}
 \usepackage{xcolor}
+\usepackage{algorithm2e}
 \newtheorem{theorem}{Theorem}
 %\newtheorem{lemma}{Lemma}
 %\newtheorem{definition}{Definition}
@@ -27,40 +28,39 @@
 \author{Shafik Nassar, Pierre Glianos}
 
 \begin{document}
-
-\maketitle
-
-\begin{abstract}
-
-The \textit{Boolean Satisfiability Problem} (SAT), archetypical NP-Complete, is the problem of determining whether a given boolean formula, usually \textit{CNF}, has a satisfying \textit{assignment}. In addition to the theoretical interest SAT draws, it has many modern-day applications in different fields, most notably hardware verification, with SAT-solvers playing an integral part in Bounded Checking Model, for example.\\
-Modern uses require solving SAT instances under given \textit{assumptions}, i.e. partial assignment to the formula's variables. Furthermore, if the instance is \textit{unsatisfiable} under the assumptions, it is interesting to compute a \textit{minimal set of conflicting assumptions}.\\
-Any algorithm that computes minimal sets of conflicting assumptions, makes several SAT-solver calls under different assumptions. In this paper, we present algorithms that aim to reduce the number of SAT-solver calls by gathering as much information as possible per call.
-
-\end{abstract}
-
-\pagebreak
-\tableofcontents
-\pagebreak
-
-\section{Introduction}
-\textbf{Symbols} \\
-Boolean Satisfiability Problem: SAT \\
-Conjunctive Normal Form (formula): CNF \\
-Computer Science: CS \\
-A CNF formula: $ \mathcal{F} $ \\
-A set of variables: $ \mathcal{V} $ \\
-An assignment: $ \phi $ \\
-A set of assumption: $ \mathcal{A} $ \\
-Set of literals in $ \mathcal{V} $: $ lit(\mathcal{V}) $
-\subsection{Introduction to SAT}
-\paragraph{Definitions}
-In the world of boolean formulas, a \textit{variable} can be assigned one of 2 possible values: $ True, False $. A \textit{literal} is an instance of a variable or it's negation, i.e. if $ x $ is a variable, then $ x $ and $ \bar{x} $ are the 2 possible literals of $ x $. Given a set of variables $ \mathcal{V} $, let $ lit(\mathcal{V}) $ be the set of all possible literals in $ \mathcal{V} $. A \textit{clause} is disjunction (OR) of literals and a formula is said to be in \textit{Conjunctive Normal Form} (CNF) if it's a conjunction (AND) of clauses. For example: $\mathcal{F} = (x_1 \lor \bar{x_2}) \land (x_2 \lor x_3) $ is a CNF, and $ \mathcal{V}=\{x_1,x_2,x_3\} $ is the group of variables (notice that $ \mathcal{V} $ doesn't include $ \bar{x_2} $). \\ An \textit{assignment} for the variables is a function $ \phi : \mathcal{V} \rightarrow \{True, False\} $. $ \phi $ \textit{satisfies} $ \mathcal{F} $ if $ \mathcal{F} $ is evaluated to $ True $ under the assignment $ \phi $. If a formula has a satisfying assignment, it is said to be \textit{satisfiable}. If no such assignment exists, then it is said to be \textit{unsatisfiable}. \\
-Now we can formally define SAT. The Boolean Satisfiability Problem is the problem of determining whether a given boolean formula, usually CNF, has is satisfiable.
-\paragraph{In Theory} SAT is interesting because it was the first problem proven to be \textit{NP-Complete}, in 1971. Ever since, the most straight forward way to prove a given problem $ P $ is NP-Complete was by showing a \textit{reduction} from SAT to $ P $. Of course, being an NP-Complete problem, finding a polynomial algorithm for solving SAT would mean that $ P=NP $, closing the most famous problem in CS. Since it's widely believed that $ P \neq NP $, the approach to solving such NP-Complete problems in real life applications is simply to try to avoid them as much as possible, since, in most cases, solving the problem would require exponential time. \\
-This was a very important motivation when designing the algorithms presented in this paper; though SAT couldn't be completely avoided in this context, it was desirable to try to reduce, as much as possible, the number of times in which an algorithm is required to solve a SAT instance.
-
-
-\subsection{Introduction to SAT-Solving}
+	
+	\maketitle
+	
+	\begin{abstract}
+		
+		The \textit{Boolean Satisfiability Problem} (SAT), archetypical NP-Complete, is the problem of determining whether a given boolean formula, usually \textit{CNF}, has a satisfying \textit{assignment}. In addition to the theoretical interest SAT draws, it has many modern-day applications in different fields, most notably hardware verification, with SAT-solvers playing an integral part in Bounded Checking Model, for example.\\
+		Modern uses require solving SAT instances under given \textit{assumptions}, i.e. partial assignment to the formula's variables. Furthermore, if the instance is \textit{unsatisfiable} under the assumptions, it is interesting to compute a \textit{minimal set of conflicting assumptions}.\\
+		Any algorithm that computes minimal sets of conflicting assumptions, makes several SAT-solver calls under different assumptions. In this paper, we present algorithms that aim to reduce the number of SAT-solver calls by gathering as much information as possible per call.
+		
+	\end{abstract}
+	
+	\pagebreak
+	\tableofcontents
+	\pagebreak
+	
+	\section{Introduction}
+	\textbf{Symbols} \\
+	Boolean Satisfiability Problem: SAT \\
+	Conjunctive Normal Form (formula): CNF \\
+	Computer Science: CS \\
+	A CNF formula: $ \mathcal{F} $ \\
+	A set of variables: $ \mathcal{V} $ \\
+	An assignment: $ \phi $ \\
+	A set of assumption: $ \mathcal{A} $ \\
+	Set of literals in $ \mathcal{V} $: $ lit(\mathcal{V}) $
+	\subsection{Introduction to SAT}
+	\paragraph{Definitions}
+	In the world of boolean formulas, a \textit{variable} can be assigned one of 2 possible values: $ True, False $. A \textit{literal} is an instance of a variable or it's negation, i.e. if $ x $ is a variable, then $ x $ and $ \bar{x} $ are the 2 possible literals of $ x $. Given a set of variables $ \mathcal{V} $, let $ lit(\mathcal{V}) $ be the set of all possible literals in $ \mathcal{V} $. A \textit{clause} is disjunction (OR) of literals and a formula is said to be in \textit{Conjunctive Normal Form} (CNF) if it's a conjunction (AND) of clauses. For example: $\mathcal{F} = (x_1 \lor \bar{x_2}) \land (x_2 \lor x_3) $ is a CNF, and $ \mathcal{V}=\{x_1,x_2,x_3\} $ is the group of variables (notice that $ \mathcal{V} $ doesn't include $ \bar{x_2} $). \\ An \textit{assignment} for the variables is a function $ \phi : \mathcal{V} \rightarrow \{True, False\} $. $ \phi $ \textit{satisfies} $ \mathcal{F} $ if $ \mathcal{F} $ is evaluated to $ True $ under the assignment $ \phi $. If a formula has a satisfying assignment, it is said to be \textit{satisfiable}. If no such assignment exists, then it is said to be \textit{unsatisfiable}. \\
+	Now we can formally define SAT. The Boolean Satisfiability Problem is the problem of determining whether a given boolean formula, usually CNF, is satisfiable.
+	\paragraph{In Theory} SAT is interesting because it was the first problem proven to be \textit{NP-Complete}, in 1971. Ever since, the most straight forward way to prove a given problem $ P $ is NP-Complete was by showing a \textit{reduction} from SAT to $ P $. Of course, being an NP-Complete problem, finding a polynomial algorithm for solving SAT would mean that $ P=NP $, closing the most famous problem in CS. Since it's widely believed that $ P \neq NP $, the approach to solving such NP-Complete problems in real life applications is simply to try to avoid them as much as possible, since, in most cases, solving the problem would require exponential time. \\
+	This was a very important motivation when designing the algorithms presented in this paper; though SAT couldn't be completely avoided in this context, it was desirable to try to reduce, as much as possible, the number of times in which an algorithm is required to solve a SAT instance.
+	\pagebreak
+	\subsection{Introduction to SAT-Solving}
 	\paragraph{History}
 	\begin{itemize}
 		\item 1960 The first SAT solving algorithm DP ( Davis, Putnam), originally for checking the validity of a first-order logic formula
@@ -71,56 +71,83 @@ This was a very important motivation when designing the algorithms presented in 
 		\item 1996 Conflict Driven Clause Learning
 		\item 1996 The First International SAT Conference (Workshop), followed by 1998, since 2000 every year
 	\end{itemize}
-
+	
 	\paragraph{SAT Solving applications}
 	\begin{itemize}
 		\item Hardware Model Checking - all major hardware companies use SAT solvers to verify their design, additionally there are many companies which specializes in developing SAT solving tools to be used in hardware verification.
 		\item Software Verification - used for verifying embedded systems in cars, airplanes, refrigerators etc. usually not over-complexed software.
 		\item Automated Planning and Scheduling in Artificial Intelligence - still one of the best approaches for optimal planning.
 	\end{itemize}
+	
+	As mentioned before, SAT is a NP-Complete problem, and therefore all the known complete algorithms have exponential runtime in the worst case. As showed before it has different uses in many fields, thus optimizing the solvers for this problem has a direct affect on the technological advancement of our world. The basic techniques for SAT solving are discussed next.
 
-	As mentioned before, SAT is a NP-Complete problem, and therefore all the known complete algorithms have exponential runtime in the worst case. As showed before it has different uses in many fields, thus optimizing the solvers for this problem has a direct affect on the technological advancement of our world. The basic techniques of SAT solving are discussed next.
-	\pagebreak
-	\paragraph{The Resolution Rule} Given the two clauses $ (I \lor x_1 \lor x_2 \lor ... \lor x_n)  \land (\bar{I} \lor y_1 \lor y_2 \lor ... \lor y_m)$ the \textit{Resolvent} clause is $ (x_1 \lor x_2 \lor ... \lor x_n \lor y_1 \lor y_2 \lor ... \lor y_m) $. \\ \\
-	Special cases
+	\paragraph{The Resolution Rule} Given the two clauses $ (I \lor x_1 \lor x_2 \lor ... \lor x_n)  \land (\bar{I} \lor y_1 \lor y_2 \lor ... \lor y_m)$ the \textit{Resolvent} clause is $ (x_1 \lor x_2 \lor ... \lor x_n \lor y_1 \lor y_2 \lor ... \lor y_m) $. \\
+	Special cases:
 	\begin{itemize}
 		\item Tautological Resolvent: $ R((x_1 \lor x_2), (\bar{x_1} \lor \bar{x_2})) = True $
 		\item Empty clause: $ R((x_1), (\bar{x_1})) = \bot $
+		\item Unit Resolution: $ R((x_1), (\bar{x_1} \lor x_2 \lor x_3)) = (x_2 \lor x_3)$
 	\end{itemize}
-
-
+	
 	\begin{theorem}
 		Resolution maintains satisfiability\\
 		Given $ \mathcal{F} $ and $ \mathcal{C}_1, \mathcal{C}_2 $ two of it's clauses with a pair complementary literals, then $ \mathcal{F} $ is satisfiable if and only if $ \mathcal{F} \land R(\mathcal{C}_1, \mathcal{C}_2) $ is satisfiable.
 	\end{theorem}
-	Based on $\textbf{Theorem 1}$, if the empty clause $\bot$ is resolved, the original formula is unsatisfiable. So, the Resolution rule may be used to proof the unsatisfiability of a formula.
-	Saturation algorithm:
-  
-\subsubsection{DPLL}
-\subsubsection{CDCL}
-\subsection{Minimal set of Conflicting Assumptions}
-In this section, we define a new problem, one that uses the definitions presented in section 1.1.
-\paragraph{Definitions} A \textit{partial assignment} for $ \mathcal{V} $ is a partial function in $ \mathcal{V} $, i.e. a function $ \phi' : \mathcal{V}' \rightarrow \{True, False\} $ s.t. $\mathcal{V}' \subsetneq \mathcal{V}$. An \textit{set of assumptions} $ \mathcal{A} $ is a partial assignment. $ \mathcal{A} $ can be thought of as a subset of literals in $\mathcal{V}$ that doesn't include a literal and it's negation, formally $ \mathcal{A} \subsetneq lit(\mathcal{V}) $ s.t. $ \forall a \in \mathcal{A} : \bar{a} \notin \mathcal{A} $.\\
-$ \mathcal{F} $ is said to be \textit{satisfiable under the assumptions} $ \mathcal{A} $ if there exists a satisfying assignment $ \phi $ that agrees with $ \mathcal{A} $ (the partial function $ \phi' $ that defines $ \mathcal{A} $ can be extended to the full function $ \phi $). Intuitively, an assumption is some sort of a constraint. The more assumptions we have, the harder it is to find a satisfying assignment.
-\paragraph{Minimal set of Conflicting Assumptions} Given $ \mathcal{F} $ and $ \mathcal{A} $ s.t. $ \mathcal{F} $ is unsatisfiable under $ \mathcal{A} $, the \textit{Minimal Conflicting Assumptions} (MCA) of $ \mathcal{A} $ is a subset $ \mathcal{A}' \subseteq \mathcal{A} $ s.t. $ \mathcal{F} $ is unsatisfiable under $ \mathcal{A}' $ and $ \forall a \in \mathcal{A}' $ : $ \mathcal{F} $ is satisfiable under $ \mathcal{A}' \setminus \{a\} $. Intuitively, we want to know which assumptions caused the unsatisfiability (conflict), but we want a minimal set of assumptions that did so. The set is minimal in the sense that removing any assumption from it will eliminate the unsatisfiability.\\
-\textbf{Example: } given  $\mathcal{F} = (x_1 \lor x_2) \land (\bar{x_2} \lor x_3)$ and $\mathcal{A} =\{\bar{x_1}, \bar{x_3}\}$. We can see that $ \mathcal{F} $ is unsatisfiable under $ \mathcal{A} $. $ \mathcal{A} $ is the MCA of itself, since removing $\bar{x_1}$ or $\bar{x_3}$ from it will eliminate the unsatisfiability (for example, the assignment $ \phi(x_1)=True,\phi(x_2)=False, \phi(x_3)=False $ extends $ \mathcal{A} \setminus \{\bar{x_1}\} $ and satisfies $\mathcal{F}$ - similar argument can be used to show that $\bar{x_3}$ is also necessary for the unsatisfiability).
-
-\subsection[Similar Problem]{Minimizing Conflicting Clauses}
-
-\section{Basic Algorithms}
-\subsection{Iterative Insertion}
-\subsection{Iterative Deletion}
-\subsubsection{Iterative Deletion with Outside Help}
-
-\section{Rotation}
-\subsection{Rotation in Conflicting Clauses}
-\subsection{Borrowing the Idea}
-
-\section{Implementation}
-\subsection{Architecture}
-
-\section{Benchmarks and Results}
-
-\section{Summary}
-
+	Based on $\textbf{Theorem 1}$, if the empty clause $\bot$ is resolved, the original formula is unsatisfiable. So, the Resolution rule may be used to proof the unsatisfiability of a formula. The following algorithm does exactly that.
+	\pagebreak
+	
+	\begin{algorithm}[H]
+		\KwIn{CNF formula $ \mathcal{F} $}
+		\KwOut{SAT, UNSTAT}
+		\While{(true)}{
+			R = resolveAll($ \mathcal{F} $)\\
+			\eIf{R $\cap$ $\mathcal{F}$ $\neq$ R } {
+				 $\mathcal{F}$ = $\mathcal{F}$ $\cup$ 
+			}{
+				break
+			}
+		}
+		\eIf{($\bot$ $\in$ $\mathcal{F}$)}{
+			return SAT
+		}{
+			return UNSAT
+		}
+	\caption{Saturation Algorithm}
+	\end{algorithm}
+	The algorithm is sound and complete, but it has exponential time and space complexity - even for "simple" formulas - so it's not really applicable in practice. Nonetheless, we will now demonstrate a very important procedure which makes use of the resolution rule and is applied in many modern solver.
+	\paragraph{Unit Propagation} The procedure is based on unit clauses, i.e. a clauses which contains one literal. The resulting formula is equivalent to the original one.\\
+	$\forall \mathcal{C} \in \mathcal{F} $ s.t. $ \mathcal{C} $ is a unit clause containing the literal $l$ we apply the following rules:
+	\begin{enumerate}
+		\item For each clause $\mathcal{C'} $ s.t. $ \mathcal{C'} \neq \mathcal{C} \land l \in \mathcal{C'} $, $\mathcal{C'} $ is removed from $\mathcal{F} $.
+		\item For each clause $\mathcal{C'} $ s.t. $\bar{l} \in \mathcal{C'} $, $\bar{l}$ is removed from $\mathcal{C'} $.
+	\end{enumerate}
+	Since every clause must be satisfied, we know that for unit clauses the literal composing it must be true, thus we can remove every clause containing this literal (except for the unit clause), this is the motivation for the first rule. The second rule is based on unit resolution and the fact that $ (x_1 \lor x_2) \vDash (x_1 \lor x_2 \lor x_3) $.
+	
+	\subsubsection{DPLL}
+	\subsubsection{CDCL}
+	\subsection{Minimal set of Conflicting Assumptions}
+	In this section, we define a new problem, one that uses the definitions presented in section 1.1.
+	\paragraph{Definitions} A \textit{partial assignment} for $ \mathcal{V} $ is a partial function in $ \mathcal{V} $, i.e. a function $ \phi' : \mathcal{V}' \rightarrow \{True, False\} $ s.t. $\mathcal{V}' \subsetneq \mathcal{V}$. A \textit{set of assumptions} $ \mathcal{A} $ is a partial assignment. $ \mathcal{A} $ can be thought of as a subset of literals in $\mathcal{V}$ that doesn't include a literal and it's negation, formally $ \mathcal{A} \subsetneq lit(\mathcal{V}) $ s.t. $ \forall a \in \mathcal{A} : \bar{a} \notin \mathcal{A} $.\\
+	$ \mathcal{F} $ is said to be \textit{satisfiable under the assumptions} $ \mathcal{A} $ if there exists a satisfying assignment $ \phi $ that agrees with $ \mathcal{A} $ (the partial function $ \phi' $ that defines $ \mathcal{A} $ can be extended to the full function $ \phi $). Intuitively, an assumption is some sort of a constraint. The more assumptions we have, the harder it is to find a satisfying assignment.
+	\paragraph{Problem definition} Given $ \mathcal{F} $ and $ \mathcal{A} $ s.t. $ \mathcal{F} $ is unsatisfiable under $ \mathcal{A} $, the \textit{Minimal Conflicting Assumptions} (MCA) of $ \mathcal{A} $ is a subset $ \mathcal{A}' \subseteq \mathcal{A} $ s.t. $ \mathcal{F} $ is unsatisfiable under $ \mathcal{A}' $ and $ \forall a \in \mathcal{A}' $ : $ \mathcal{F} $ is satisfiable under $ \mathcal{A}' \setminus \{a\} $. Intuitively, we want to know which assumptions caused the unsatisfiability (conflict), but we want a minimal set of assumptions that did so. The set is minimal in the sense that removing any assumption from it will eliminate the unsatisfiability.\\
+	\textbf{Example: } given  $\mathcal{F} = (x_1 \lor x_2) \land (\bar{x_2} \lor x_3)$ and $\mathcal{A} =\{\bar{x_1}, \bar{x_3}\}$. We can see that $ \mathcal{F} $ is unsatisfiable under $ \mathcal{A} $. $ \mathcal{A} $ is the MCA of itself, since removing $\bar{x_1}$ or $\bar{x_3}$ from it will eliminate the unsatisfiability (for example, the assignment $ \phi(x_1)=True,\phi(x_2)=False, \phi(x_3)=False $ extends $ \mathcal{A} \setminus \{\bar{x_1}\} $ and satisfies $\mathcal{F}$ - similar argument can be used to show that $\bar{x_3}$ is also necessary for the unsatisfiability).
+	
+	\subsection[Similar Problem]{Minimizing Conflicting Clauses}
+	
+	\section{Basic Algorithms}
+	\subsection{Iterative Insertion}
+	\subsection{Iterative Deletion}
+	\subsubsection{Iterative Deletion with Outside Help}
+	
+	\section{Rotation}
+	\subsection{Rotation in Conflicting Clauses}
+	\subsection{Borrowing the Idea}
+	
+	\section{Implementation}
+	\subsection{Architecture}
+	
+	\section{Benchmarks and Results}
+	
+	\section{Summary}
+	
 \end{document}
