@@ -34,8 +34,12 @@
 	\begin{abstract}
 		
 		The \textit{Boolean Satisfiability Problem} (SAT), archetypical NP-Complete, is the problem of determining whether a given boolean formula, usually \textit{CNF}, has a satisfying \textit{assignment}. In addition to the theoretical interest SAT draws, it has many modern-day applications in different fields, most notably hardware verification, with SAT-solvers playing an integral part in Bounded Checking Model, for example.\\
-		Modern uses require solving SAT instances under given \textit{assumptions}, i.e. partial assignment to the formula's variables. Furthermore, if the instance is \textit{unsatisfiable} under the assumptions, it is interesting to compute a \textit{minimal set of conflicting assumptions}.\\
+		Modern uses require solving SAT instances under given \textit{assumptions}, i.e. partial assignment to the formula's variables. Furthermore, if the instance is \textit{unsatisfiable} under the assumptions, it is interesting to compute a \textit{Minimal set of Conflicting Assumptions} (MCA). For example, computing MCAs \textit{can} be used \textit{indirectly}\footnote{this paper will discuss how, theoretically, the problem of extracting Minimally Unsatisfiable Sub-formulas (MUS) can be reduced to the problem of computing MCAs.  MUS are used in a number of verification tasks to extract a concise description of inconsistency [\textit{Anton Belov and Joao Marques-Silva. Accelerating MUS Extraction with Recursive Model Rotation}]} in some verification tasks to extract a concise description of inconsistency.\\
 		Any algorithm that computes minimal sets of conflicting assumptions, makes several SAT-solver calls under different assumptions. In this paper, we present algorithms that aim to reduce the number of SAT-solver calls by gathering as much information as possible per call.
+		The goal of our project was to design and implement efficient\footnote{with respect to number of SAT-solver calls} algorithms for computing MCAs, compare them and assess their performance. We use a well known open source SAT-solver called MiniSAT. This paper presents the knowledge we needed to acquire in order to approach the problem, the theory and the implementations of the algorithms. \\
+		The main algorithm presented in this paper (Iterative Deletion-Based Rotation) is heavily influenced by similar MUS Extraction algorithm called Recursive Model Rotation. Recursive Model Rotation led to multiple orders of magnitude performance improvements on practical instances\footnote{presented in [\textit{Anton Belov and Joao Marques-Silva. Accelerating MUS Extraction with Recursive Model Rotation}]}. Mainly for this reason, MUS will be discussed in this paper. To the best of our knowledge, this is the first algorithm for computing Minimal sets of Conflicting Assumptions that uses the technique of Model Rotation.
+		
+		\paragraph{title}
 		
 	\end{abstract}
 	
@@ -48,7 +52,7 @@
 	Boolean Satisfiability Problem: SAT \\
 	Conjunctive Normal Form (formula): CNF \\
 	Computer Science: CS \\
-	A CNF formula: $ \mathcal{F} $ \\
+	A CNF formula: $ \mathcal{F} $ (sometimes will be treated as a set of clauses) \\
 	A set of variables: $ \mathcal{V} $ \\
 	An assignment: $ \phi $ \\
 	A set of assumption: $ \mathcal{A} $ \\
@@ -56,7 +60,7 @@
 	\subsection{Introduction to SAT}
 	\paragraph{Definitions}
 	In the world of boolean formulas, a \textit{variable} can be assigned one of 2 possible values: $ True, False $. A \textit{literal} is an instance of a variable or it's negation, i.e. if $ x $ is a variable, then $ x $ and $ \bar{x} $ are the 2 possible literals of $ x $. Given a set of variables $ \mathcal{V} $, let $ lit(\mathcal{V}) $ be the set of all possible literals in $ \mathcal{V} $. A \textit{clause} is disjunction (OR) of literals and a formula is said to be in \textit{Conjunctive Normal Form} (CNF) if it's a conjunction (AND) of clauses. For example: $\mathcal{F} = (x_1 \lor \bar{x_2}) \land (x_2 \lor x_3) $ is a CNF, and $ \mathcal{V}=\{x_1,x_2,x_3\} $ is the group of variables (notice that $ \mathcal{V} $ doesn't include $ \bar{x_2} $). \\ An \textit{assignment} for the variables is a function $ \phi : \mathcal{V} \rightarrow \{True, False\} $. $ \phi $ \textit{satisfies} $ \mathcal{F} $ if $ \mathcal{F} $ is evaluated to $ True $ under the assignment $ \phi $. If a formula has a satisfying assignment, it is said to be \textit{satisfiable}. If no such assignment exists, then it is said to be \textit{unsatisfiable}. \\
-	Now we can formally define SAT. The Boolean Satisfiability Problem is the problem of determining whether a given boolean formula, usually CNF, is satisfiable.
+	Now we can define SAT. The Boolean Satisfiability Problem is the problem of determining whether a given boolean formula, usually CNF, is satisfiable. Formally, given $ \mathcal{F} $, determine whether it has a model (denoted $ \mathcal{F} \in SAT $) or not (denoted $ \mathcal{F} \in UNSAT $))
 	\paragraph{In Theory} SAT is interesting because it was the first problem proven to be \textit{NP-Complete}, in 1971. Ever since, the most straight forward way to prove a given problem $ P $ is NP-Complete was by showing a \textit{reduction} from SAT to $ P $. Of course, being an NP-Complete problem, finding a polynomial algorithm for solving SAT would mean that $ P=NP $, closing the most famous problem in CS. Since it's widely believed that $ P \neq NP $, the approach to solving such NP-Complete problems in real life applications is simply to try to avoid them as much as possible, since, in most cases, solving the problem would require exponential time. \\
 	This was a very important motivation when designing the algorithms presented in this paper; though SAT couldn't be completely avoided in this context, it was desirable to try to reduce, as much as possible, the number of times in which an algorithm is required to solve a SAT instance.
 	\pagebreak
@@ -129,11 +133,41 @@
 	In this section, we define a new problem, one that uses the definitions presented in section 1.1.
 	\paragraph{Definitions} A \textit{partial assignment} for $ \mathcal{V} $ is a partial function in $ \mathcal{V} $, i.e. a function $ \phi' : \mathcal{V}' \rightarrow \{True, False\} $ s.t. $\mathcal{V}' \subsetneq \mathcal{V}$. A \textit{set of assumptions} $ \mathcal{A} $ is a partial assignment. $ \mathcal{A} $ can be thought of as a subset of literals in $\mathcal{V}$ that doesn't include a literal and it's negation, formally $ \mathcal{A} \subsetneq lit(\mathcal{V}) $ s.t. $ \forall a \in \mathcal{A} : \bar{a} \notin \mathcal{A} $.\\
 	$ \mathcal{F} $ is said to be \textit{satisfiable under the assumptions} $ \mathcal{A} $ if there exists a satisfying assignment $ \phi $ that agrees with $ \mathcal{A} $ (the partial function $ \phi' $ that defines $ \mathcal{A} $ can be extended to the full function $ \phi $). Intuitively, an assumption is some sort of a constraint. The more assumptions we have, the harder it is to find a satisfying assignment.
-	\paragraph{Problem definition} Given $ \mathcal{F} $ and $ \mathcal{A} $ s.t. $ \mathcal{F} $ is unsatisfiable under $ \mathcal{A} $, the \textit{Minimal Conflicting Assumptions} (MCA) of $ \mathcal{A} $ is a subset $ \mathcal{A}' \subseteq \mathcal{A} $ s.t. $ \mathcal{F} $ is unsatisfiable under $ \mathcal{A}' $ and $ \forall a \in \mathcal{A}' $ : $ \mathcal{F} $ is satisfiable under $ \mathcal{A}' \setminus \{a\} $. Intuitively, we want to know which assumptions caused the unsatisfiability (conflict), but we want a minimal set of assumptions that did so. The set is minimal in the sense that removing any assumption from it will eliminate the unsatisfiability.\\
-	\textbf{Example: } given  $\mathcal{F} = (x_1 \lor x_2) \land (\bar{x_2} \lor x_3)$ and $\mathcal{A} =\{\bar{x_1}, \bar{x_3}\}$. We can see that $ \mathcal{F} $ is unsatisfiable under $ \mathcal{A} $. $ \mathcal{A} $ is the MCA of itself, since removing $\bar{x_1}$ or $\bar{x_3}$ from it will eliminate the unsatisfiability (for example, the assignment $ \phi(x_1)=True,\phi(x_2)=False, \phi(x_3)=False $ extends $ \mathcal{A} \setminus \{\bar{x_1}\} $ and satisfies $\mathcal{F}$ - similar argument can be used to show that $\bar{x_3}$ is also necessary for the unsatisfiability).
+	\paragraph{Problem definition: MCA} Given $ \mathcal{F} $ and $ \mathcal{A} $ s.t. $ \mathcal{F} $ is unsatisfiable under $ \mathcal{A} $, the \textit{Minimal Conflicting Assumptions} (MCA) of $ \mathcal{A} $ is a subset $ \mathcal{A}' \subseteq \mathcal{A} $ s.t. $ \mathcal{F} $ is unsatisfiable under $ \mathcal{A}' $ and $ \forall a \in \mathcal{A}' $ : $ \mathcal{F} $ is satisfiable under $ \mathcal{A}' \setminus \{a\} $, denoted $ \mathcal{A}' \in MCA(\mathcal{F},\mathcal{A}) $. Intuitively, we want to know which assumptions caused the unsatisfiability (conflict), but we want a minimal set of assumptions that did so. The set is minimal in the sense that removing any assumption from it will eliminate the unsatisfiability.\\
+	\paragraph{Example 1 } given  $\mathcal{F} = (x_1 \lor x_2) \land (\bar{x_2} \lor x_3)$ and $\mathcal{A} =\{\bar{x_1}, \bar{x_3}\}$. We can see that $ \mathcal{F} $ is unsatisfiable under $ \mathcal{A} $. $ \mathcal{A} $ is the MCA of itself, since removing $\bar{x_1}$ or $\bar{x_3}$ from it will eliminate the unsatisfiability (for example, the assignment $ \phi(x_1)=True,\phi(x_2)=False, \phi(x_3)=False $ extends $ \mathcal{A} \setminus \{\bar{x_1}\} $ and satisfies $\mathcal{F}$ - similar argument can be used to show that $\bar{x_3}$ is also necessary for the unsatisfiability). This example demonstrates that the MCA can be equal to the original set of assumptions.
+	\paragraph{Example 2 } given  $\mathcal{F} = (x_1 \lor x_2 \lor x_5) \land (x_3 \lor x_5) \land (\bar{x_5} \lor \bar{x_4})$ and $\mathcal{A} =\{\bar{x_1}, \bar{x_2}, \bar{x_3}, x_4\}$. Again, we can see that $ \mathcal{F} $ is unsatisfiable under $ \mathcal{A} $. $ x_4 $ implies $ \bar{x_5} $ but $\bar{x_1}$ and $ \bar{x_2}$ imply $ x_5 $. That's a conflict, so $\mathcal{A}_1 =\{\bar{x_1}, \bar{x_2}, x_4\}$ is an MCA. But also $ x_3 $ by itself implies $ x_5 $, so it can replace both $ \bar{x_1}, \bar{x_2} $ in $ \mathcal{A}_1 $ and we get a new MCA, $\mathcal{A}_2 =\{\bar{x_3}, x_4\}$. 
+	This example demonstrates that the MCA is not necessarily unique. Furthermore, it demonstrates that "size doesn't matter", i.e. the number of elements in the MCA doesn't affect its status as an MCA.
+	
+	\paragraph{Next Step} The main focus of the rest of this paper will be designing and implementing efficient algorithms that, given $\mathcal{F}, \mathcal{A}$, compute an MCA.
 	
 	\subsection[Similar Problem]{Minimizing Conflicting Clauses}
+	\paragraph{Definitions} Here, $ \mathcal{F} $ is treated as a set of clauses. $ \mathcal{F} $ is \textit{minimally unsatisfiable} if $ \mathcal{F} \in UNSAT $ and for any $ \mathcal{F}' \subsetneq \mathcal{F} $, $ \mathcal{F}' \in SAT$. Given a formula $ \mathcal{F} \in UNSAT $, a \textit{Minimally Unsatisfiable Sub-formula} of $ \mathcal{F} $ is any $ \mathcal{F}' \subseteq \mathcal{F} $ s.t. $ \mathcal{F}' $ is minimally unsatisfiable, denoted $ \mathcal{F}' \in MUS(\mathcal{F}) $.
+
+	\paragraph{Problem definition: MUS} Given $ \mathcal{F} $, compute any $ \mathcal{F}' \in MUS(\mathcal{F}) $.
 	
+	\paragraph{Connection to MCA} The definition of MUS is very similar to MCA. In both problems, given an unsatisfiable instance, we search for a minimal (in respect to set inclusion) subset of objects that is responsible for the unsatisfiability. We will in fact prove that MUS Extraction can be reduced to Computing MCA.
+	
+	\begin{theorem}
+		MUS Extraction can be reduced to Computing MCA
+	\end{theorem}
+	\begin{proof} \textit{Scheme}
+		Given $ \mathcal{G}=\{c_1,c_2,...,c_m\} \in UNSAT$ with $ m $ clauses, we will construct a pair  $ <\mathcal{F}=\{c'_1,c'_2,...,c'_m\},\mathcal{A}=\{a_1,a_2,...,a_m\}> $. Intuitively, each original clause $ c_i \in \mathcal{G} $ will have an indicator $ a_i \in \mathcal{A} $; if the indicator is turned on ($ a_i$ is assumed to be True) then the assignment must satisfy $ c_i $, else, the assignment may or may not satisfy $ c_i $. We'd argue that for every subset $\{n_i\}_1^k \subseteq [m] $, if we denote  ${G}'=\{c_{n_i}\}_1^k \subseteq \mathcal{G}, \mathcal{A}'=\{a_{n_i}\}_1^k \subseteq \mathcal{A}$ then the following logical biconditional holds: \\ 
+		$ \mathcal{G}'\in MUS(\mathcal{G}) \iff  \mathcal{A}'\in MCA(\mathcal{F}, \mathcal{A}) $ \\
+		Let $ \{a_1,...,a_m\} $ be a set of variables disjoint to $ Var(\mathcal{G}) $. The pair will be constructed as follows:
+		\begin{itemize}
+			\item $ \mathcal{F}=\{c'_i | c_i = (x_1 \lor ... \lor x_{k_i})\in\mathcal{G}, c'_i= (x_1 \lor ... \lor x_{k_i} \lor \bar{a_i}) \} $
+			\item $ \mathcal{A}=\{a_1,...,a_m\} $
+		\end{itemize}
+	$ \mathcal{F} $ is UNSAT under $ \mathcal{A} $ since none of the newly added literals $ \bar{a_1},...,\bar{a_m} $ can satisfy any clause (because $ \mathcal{A} $ implies, by definition, $ \{a_1,...,a_m\} $, which evaluate every $ \bar{a_i} $ to False), and therefore we go back to satisfying $ \mathcal{G}$. But we assume $ \mathcal{G} \in UNSAT $. \\
+	Now we prove the logical biconditional:
+	\begin{itemize}
+		\item Given a subset $ \mathcal{G}'$ s.t. $ {G}' \in MUS(\mathcal{G}) $, then no assignment satisfies $ \mathcal{G}' $, so no assignment satisfies $ \mathcal{F} $ under the corresponding subset of assumptions $ \mathcal{A}'$. Also, for each $ c_i \in \mathcal{G}'$, there exists an assignment $ \phi_i $ that satisfies $ \mathcal{G}' \setminus \{c_i\}$. Let us define a new assignment $ \Phi_i $ that gives every original variable $ x \in Var(\mathcal{G}) $ the value $ \phi_i(x) $, every $ a \in \mathcal{A}'\{a_i\}$ the value $ True $ and every other indicator $ False $. $ \Phi_i $ satisfies $ \mathcal{F} $ under $\mathcal{A}'\{a_i\}$. Therefore, $ \mathcal{A}' \in MCA(\mathcal{F,A}) $.
+		\item Given a subset $ \mathcal{A}'$ s.t. $ \mathcal{A}' \in MCA(\mathcal{F,A}) $, a very similar argument can show that the corresponding sub-formula $ {G}' $ is in $ MUS(\mathcal{G})$.
+	\end{itemize}
+	\end{proof}
+
+\paragraph{Exploiting Similarities} In section 3, we will demonstrate an algorithm, empirically proven in [\footnote{\textit{Anton Belov and Joao Marques-Silva. Accelerating MUS Extraction with Recursive Model Rotation}}] to be efficient on practical instances, for MUS Extraction. We will then present a new algorithm for computing MCAs that uses the same technique used by the efficient MUS extractor.
+
 	\section{Basic Algorithms}
 	\subsection{Iterative Insertion}
 	\subsection{Iterative Deletion}
