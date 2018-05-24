@@ -127,7 +127,28 @@
 	\end{enumerate}
 	Since every clause must be satisfied, we know that for unit clauses the literal composing it must be true, thus we can remove every clause containing this literal (except for the unit clause), this is the motivation for the first rule. The second rule is based on unit resolution and the fact that $ (x_1 \lor x_2) \vDash (x_1 \lor x_2 \lor x_3) $.
 	
+	\paragraph{Pure Literal Deletion} If a literal $ l $ never occurs negated in $ \mathcal{F} $ then each clause containing $ l $ may be deleted from the formula. This is correct because each clause containing $ l $ can be satisfied by setting $ l $ to True without sacrificing other clauses.
+	
 	\subsubsection{DPLL}
+	Davis-Putnam-Logemann-Loveland algorithm was introduced in 1962 and is based on the earlier Davis-Putnam algorithm, though it contains few algorithmic improvements. \\
+	The basic idea is simplification and case splitting. Simplification is achieved by applying unit propagation and pure literal deletion to the formula. In case splitting a literal $ l $ is chosen \textit{wisely}\footnote{\textit{Joao Marques-Silva. The Impact of Branching Heuristics in Propositional Satisfiability Algorithms} } then two recursive calls is performed with $ l $ being set to $ True $ and $ False $ respectively. The algorithm stops when $ \bot $ is implied, there are no clauses left - meaning all literals are assigned - or after all assignments have been tried.
+	\\
+	\begin{algorithm}[H]
+		\KwIn{CNF formula $ \mathcal{F} $}
+		\KwOut{$true$, $false$}
+		\While{$ \mathcal{F} $ contains unit clause \{$ l $\}} {
+			$ \mathcal{F} = propogate(\mathcal{F}, l) $
+		}
+		\If{$\bot \in \mathcal{F} $}{ return $false$ }
+		\While{$ \mathcal{F} $ contains pure literal $ l $} {
+			$ \mathcal{F} = delete\_literal(\mathcal{F}, l) $
+		}
+		$ l = choose\_literal\_for\_splitting(\mathcal{F}) $ \\
+		\eIf{$ l == nil $}{return $true$}{return DPLL($\mathcal{F} \cup \{l\})$ or $ DPLL(\mathcal{F} \cup \{\neg l\}) $}
+	\caption{DPLL Algorithm}
+	\end{algorithm}
+	Since it was published, the algorithm has been a hot topic in research and SAT solving competitions. In recent years the work on improving the algorithm has been done on alternative directions, from defining new data structures in order to perform different operations faster (unit propagation), to trying variant policies for choosing the case splitting literal.\\ The most significant improvements are non-chronological backtracking (backjumping) and clause learning. These refinements describe a method of backtracking and learning when reaching a conflict clause. The result are state of the art Conflict-Driven Clause Learning (CDCL) SAT solvers.
+
 	\subsubsection{CDCL}
 	\subsection{Minimal set of Conflicting Assumptions}
 	In this section, we define a new problem, one that uses the definitions presented in section 1.1.
@@ -166,7 +187,7 @@
 	\end{itemize}
 	\end{proof}
 
-\paragraph{Exploiting Similarities} In section 3, we will demonstrate an algorithm, empirically proven in [\footnote{\textit{Anton Belov and Joao Marques-Silva. Accelerating MUS Extraction with Recursive Model Rotation}}] to be efficient on practical instances, for MUS Extraction. We will then present a new algorithm for computing MCAs that uses the same technique used by the efficient MUS extractor.
+\paragraph{Exploiting Similarities} In section 3, we will demonstrate an algorithm, empirically proven [\footnote{\textit{Anton Belov and Joao Marques-Silva. Accelerating MUS Extraction with Recursive Model Rotation}}] to be efficient on practical instances, for MUS Extraction. We will then present a new algorithm for computing MCAs that uses the same technique used by the efficient MUS extractor.
 
 	\section{Basic Algorithms}
 	\subsection{Iterative Insertion}
