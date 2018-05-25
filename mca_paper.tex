@@ -14,6 +14,9 @@
 \usepackage{cite}
 \usepackage{xcolor}
 \usepackage{algorithm2e}
+\hypersetup{%
+	pdfborder = {0 0 0}
+}
 \newtheorem{theorem}{Theorem}
 %\newtheorem{lemma}{Lemma}
 %\newtheorem{definition}{Definition}
@@ -22,7 +25,6 @@
 %\newtheorem{observation}{Observation}
 %\newtheorem{remark}{Remark}
 %\newtheorem{oq}{Open Question}
-
 %opening
 \title{Rotation in Minimising Conflicting Assumptions}
 \author{Shafik Nassar, Pierre Glianos}
@@ -103,15 +105,15 @@
 	\begin{algorithm}[H]
 		\KwIn{CNF formula $ \mathcal{F} $}
 		\KwOut{SAT, UNSTAT}
-		\While{(true)}{
-			R = resolveAll($ \mathcal{F} $)\\
-			\eIf{R $\cap$ $\mathcal{F}$ $\neq$ R } {
-				 $\mathcal{F}$ = $\mathcal{F}$ $\cup$ 
+		\While{true}{
+			R $\leftarrow$ resolveAll($ \mathcal{F} $)\\
+			\eIf{R $\cap$ $ \mathcal{F} \neq$ R } {
+				 $\mathcal{F} \leftarrow \mathcal{F} \cup R $
 			}{
 				break
 			}
 		}
-		\eIf{($\bot$ $\in$ $\mathcal{F}$)}{
+		\eIf{$\bot$ $\in$ $\mathcal{F}$}{
 			return SAT
 		}{
 			return UNSAT
@@ -137,14 +139,14 @@
 		\KwIn{CNF formula $ \mathcal{F} $}
 		\KwOut{$true$, $false$}
 		\While{$ \mathcal{F} $ contains unit clause \{$ l $\}} {
-			$ \mathcal{F} = propogate(\mathcal{F}, l) $
+			$ \mathcal{F} \leftarrow propogate(\mathcal{F}, l) $
 		}
 		\If{$\bot \in \mathcal{F} $}{ return $false$ }
 		\While{$ \mathcal{F} $ contains pure literal $ l $} {
-			$ \mathcal{F} = delete\_literal(\mathcal{F}, l) $
+			$ \mathcal{F} \leftarrow delete\_literal(\mathcal{F}, l) $
 		}
-		$ l = choose\_literal\_for\_splitting(\mathcal{F}) $ \\
-		\eIf{$ l == nil $}{return $true$}{return DPLL($\mathcal{F} \cup \{l\})$ or $ DPLL(\mathcal{F} \cup \{\neg l\}) $}
+		$ l \leftarrow choose\_literal\_for\_splitting(\mathcal{F}) $ \\
+		\eIf{$ l = nil $}{return $true$}{return DPLL($\mathcal{F} \cup \{l\})$ or $ DPLL(\mathcal{F} \cup \{\neg l\}) $}
 	\caption{DPLL Algorithm}
 	\end{algorithm}
 	Since it was published, the algorithm has been a hot topic in research and SAT solving competitions. In recent years the work on improving the algorithm has been done on alternative directions, from defining new data structures in order to perform different operations faster (unit propagation), to trying variant policies for choosing the case splitting literal.\\ The most significant improvements are non-chronological backtracking (backjumping) and clause learning. These refinements describe a method of backtracking and learning when reaching a conflict clause. The result are state of the art Conflict-Driven Clause Learning (CDCL) SAT solvers.
@@ -187,11 +189,41 @@
 	\end{itemize}
 	\end{proof}
 
-\paragraph{Exploiting Similarities} In section 3, we will demonstrate an algorithm, empirically proven [\footnote{\textit{Anton Belov and Joao Marques-Silva. Accelerating MUS Extraction with Recursive Model Rotation}}] to be efficient on practical instances, for MUS Extraction. We will then present a new algorithm for computing MCAs that uses the same technique used by the efficient MUS extractor.
+	\paragraph{Exploiting Similarities} In section 3, we will demonstrate an algorithm, empirically proven [\footnote{\textit{Anton Belov and Joao Marques-Silva. Accelerating MUS Extraction with Recursive Model Rotation}}] to be efficient on practical instances, for MUS Extraction. We will then present a new algorithm for computing MCAs that uses the same technique used by the efficient MUS extractor.
 
 	\section{Basic Algorithms}
 	\subsection{Iterative Insertion}
+		\begin{algorithm}[H]
+		\KwIn{Unsatisfiable CNF formula $ \mathcal{F} $ under set of assumptions $ \mathcal{A} $}
+		\KwOut{MCA $ \mathcal{M} $ }
+		$ \mathcal{M} $ $\leftarrow$ $\emptyset$\\
+		\While{solve($ \mathcal{F} $, $ \mathcal{M} $) $\neq$ SAT} {
+			S $\leftarrow$ $ \mathcal{M} $\\
+			\ForEach{a $\in \mathcal{A} \backslash \mathcal{M} $}{
+				\If{solve($ \mathcal{F} $, S) = UNSAT}{
+					$ \mathcal{M} $ $\leftarrow$ $ \mathcal{M} $ $\cup$ \{a\}
+				}
+			}
+		}
+		return $ \mathcal{M} $
+		\caption{Iterative Insertion}
+	\end{algorithm}
 	\subsection{Iterative Deletion}
+			\begin{algorithm}[H]
+		\KwIn{Unsatisfiable CNF formula $ \mathcal{F} $ under set of assumptions $ \mathcal{A} $}
+		\KwOut{MCA $ \mathcal{M} $ }
+		$ \mathcal{M} $ $\leftarrow$ $ \mathcal{A} $\\
+		\While{solve($ \mathcal{F} $, $ \mathcal{M} $) $\neq$ SAT} {
+			\ForEach{a $\in \mathcal{A} $}{
+				 $\mathcal{M} \leftarrow \mathcal{M} \backslash \{a\}$\\
+				\If{solve($ \mathcal{F} $, $ \mathcal{M} $) = UNSAT}{
+					$ \mathcal{M} $ $\leftarrow$ $ \mathcal{M} $ $\cup$ \{a\}
+				}
+			}
+		}
+		return $ \mathcal{M} $
+		\caption{Iterative Deletion}
+	\end{algorithm}
 	\subsubsection{Iterative Deletion with Outside Help}
 	
 	\section{Rotation}
