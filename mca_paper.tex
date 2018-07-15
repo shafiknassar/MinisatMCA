@@ -2,7 +2,6 @@
 
 \usepackage{fullpage}
 \usepackage[utf8]{inputenc}
-\usepackage{algorithm}
 \usepackage{algorithmic}
 \usepackage{amsfonts}
 \usepackage{graphicx}
@@ -19,6 +18,8 @@
 	pdfborder = {0 0 0}
 }
 \newtheorem{theorem}{Theorem}
+
+\newcommand{\msat}[0]{$MiniSat$ }
 %\newtheorem{lemma}{Lemma}
 %\newtheorem{definition}{Definition}
 %\newtheorem{claim}{Claim}
@@ -270,7 +271,7 @@
 	
 	\paragraph{Correctness} Let $ \mathcal{F} $ be a CNF formula, $ \mathcal{A} $ a set of assumptions s.t. $ \mathcal{F} $ is UNSAT under $ \mathcal{A} $. Let $ S \subseteq \mathcal{A} $, $ a \in \mathcal{A} \backslash S $ s.t. $ \mathcal{F} $ is SAT under $ S $ and UNSAT under $ S \cup \{a\} $. Then there exists an MCA that includes $ a $. Since the algorithm composes the minimal set according to the above rule and halts at the moment the formula is unsatisfiable under this set, guarantees that the result is minimal.
  
-	\paragraph{Complexity} As can be noticed, there are two nested loops where each one might perform $ \mathcal{O \left( | M |\right) } $ iterations, so the worst case complexity is $ \mathcal{O \left( | M |^\text{2} \right) } $ solver calls.
+	\paragraph{Complexity} As can be noticed, there are two nested loops where each one might perform $ \mathcal{O \left( | M |\right) } $ iterations, so the worst case complexity is $ O \left( | M |^\text{2} \right) $ solver calls.
 	
 	
 	\subsection{Iterative Deletion}
@@ -287,11 +288,11 @@
 			return $ \mathcal{M} $
 			\caption{Iterative Deletion}
 		\end{algorithm}
-		In contrary to the previous algorithm, this one begins with the vital set containing all the assumptions. Then it tries to remove each one by a time, if the formula is satisfiable under the set now then the assumption is vital and is restored to the set.
+		In contrary to the previous algorithm, this one begins with the vital set containing all the assumptions. Then it tries to remove each one at a time, if the formula is satisfiable under the set now then the assumption is vital and is restored to the set.
 		
 		\paragraph{Correctness} Let $ \mathcal{F} $ be a CNF formula, $ \mathcal{A} $ a set of conflicting assumptions and $  a \in \mathcal{A} $. If $ \mathcal{F} $ is UNSAT under $ \mathcal{A} \backslash \{a\} $ then there exists a MCA that doesn't include $ \{a\} $. If $ \mathcal{F} $ is SAT under $ \mathcal{A} \backslash \{a\} $ then $ \{a\} $ is included in every MCA. As the algorithm filters the non-vital assumptions, the result is assured to be minimal.
 		
-		\paragraph{Complexity} The algorithm scans the set of assumptions once then the worst case complexity is $ \mathcal{O \left( | M | \right) } $
+		\paragraph{Complexity} The algorithm scans the set of assumptions once then the worst case complexity is $ O \left( | M | \right)  $ solver calls.
 		
 		\subsubsection{Iterative Deletion with Outside Help}
 			\begin{algorithm}[H]
@@ -309,7 +310,13 @@
 				return $ \mathcal{M} $
 				\caption{Iterative Deletion With Outside Help}
 			\end{algorithm}
-	
+		
+		\msat has the ability to solve the problem under assumptions, and as discussed in the first chapter, it has an internal conflict handling mechanism. So, in case the problem is unsatisfiable, \msat can provide the conflicting assumptions.
+		
+		\paragraph{Correctness} Same as the previous algorithm. The call to \msat in case the formula is unsatisfiable will only remove non conflicting assumptions from the set.
+		
+		\paragraph{Complexity} Also $ O \left( | M |\right) $ solver calls, as the information that's used from the solver is gathered during the $ solve $ method. In addition, set operations can be done in constant time.
+		
 	\section{Rotation}
 	\subsection{Rotation in Conflicting Clauses}
 	\subsection{Borrowing the Idea}
