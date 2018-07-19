@@ -20,7 +20,7 @@
 \newtheorem{theorem}{Theorem}
 \newtheorem{claim}  {Claim}
 
-\newcommand{\msat}[0]{$MiniSat$ }
+\newcommand{\msat}[0]{$MiniSAT$ }
 %\newtheorem{lemma}{Lemma}
 %\newtheorem{definition}{Definition}
 %\newtheorem{claim}{Claim}
@@ -38,38 +38,43 @@
 	
 	\begin{abstract}
 		
-		The \textit{Boolean Satisfiability Problem} (SAT), archetypical NP-Complete, is the problem of determining whether a given boolean formula, usually \textit{CNF}, has a satisfying \textit{assignment}. In addition to the theoretical interest SAT draws, it has many modern-day applications in different fields, most notably hardware verification, with SAT-solvers playing an integral part in Bounded Checking Model, for example.\\
-		Modern uses require solving SAT instances under given \textit{assumptions}, i.e. partial assignment to the formula's variables. Furthermore, if the instance is \textit{unsatisfiable} under the assumptions, it is interesting to compute a \textit{Minimal set of Conflicting Assumptions} (MCA). For example, computing MCAs \textit{can} be used \textit{indirectly}\footnote{this paper will discuss how, theoretically, the problem of extracting Minimally Unsatisfiable Sub-formulas (MUS) can be reduced to the problem of computing MCAs.  MUS are used in a number of verification tasks to extract a concise description of inconsistency \cite{MUSRMR}} in some verification tasks to extract a concise description of inconsistency.\\
+		The \textit{Boolean Satisfiability Problem} (SAT), archetypical NP-Complete, is the problem of determining whether a given boolean formula, usually \textit{CNF}, has a satisfying \textit{assignment}. In addition to the theoretical interest SAT draws, it has many modern-day applications in different fields, most notably hardware verification, with SAT-solvers playing an integral part in Bounded Model Checking, for example.\\
+		Modern uses require solving SAT instances under given \textit{assumptions}, i.e. partial assignment to the formula's variables. Furthermore, if the instance is \textit{unsatisfiable} under the assumptions, it is interesting to compute a \textit{Minimal set of Conflicting Assumptions} (MCA). For example, computing MCAs \textit{can} be used \textit{indirectly}\footnote{this paper will discuss how, theoretically, the problem of extracting Minimally Unsatisfiable Sub-formulas (MUS) can be reduced to the problem of computing MCAs.  MUS are used in a number of verification tasks to extract a concise description of inconsistency \cite{Rotation}} in some verification tasks to extract a concise description of inconsistency.\\
 		Any algorithm that computes minimal sets of conflicting assumptions, makes several SAT-solver calls under different assumptions. In this paper, we present algorithms that aim to reduce the number of SAT-solver calls by gathering as much information as possible per call.
 		The goal of our project was to design and implement efficient\footnote{with respect to number of SAT-solver calls} algorithms for computing MCAs, compare them and assess their performance. We use a well known open source SAT-solver called MiniSAT. This paper presents the knowledge we needed to acquire in order to approach the problem, the theory and the implementations of the algorithms. \\
-		The main algorithm presented in this paper (Iterative Deletion-Based Rotation) is heavily influenced by similar MUS Extraction algorithm called Recursive Model Rotation. Recursive Model Rotation led to multiple orders of magnitude performance improvements on practical instances\footnote{presented in \cite{MUSRMR}}. Mainly for this reason, MUS will be discussed in this paper. To the best of our knowledge, this is the first algorithm for computing Minimal sets of Conflicting Assumptions that uses the technique of Model Rotation.
+		The main algorithm presented in this paper (Iterative Deletion-Based Recursive Model Rotation) is heavily influenced by similar MUS Extraction technique called Recursive Model Rotation. Recursive Model Rotation led to multiple orders of magnitude performance improvements on practical instances\footnote{presented in \cite{Rotation}}. Mainly for this reason, MUS will be discussed in this paper. To the best of our knowledge, this is the first algorithm for computing Minimal sets of Conflicting Assumptions that uses the technique of Model Rotation.
 		
 		\paragraph{title}
 		
 	\end{abstract}
 	
 	\pagebreak
-	\tableofcontents
+	\paragraph{A word from the authors} ...\\\\\\
+		Many thanks to Alexander Ivrii from IBM, for never hesitating to share his knowledge, provide help and being a great advisor.\\\\
+		Thanks to Goel Samuel from the VLSI laboratory in the EE faculty for giving us the opportunity to work on this project, and be exposed to this exciting field.\\ \\
+		The following paper discusses the theoretical and practical aspects of \textit{SAT-solving}, starting from the basics and then diving into the advanced algorithms. We felt that basics of \textit{SAT-solving} should be included, because it was all new for us and learning them was an integral part of our work on this project...\\\\Hopefully, this provides a good introduction to the field for people that are just getting started (like we were, at the beginning of the semester), and a fresh perspective for people interested in the main problem we discuss,\textit{ Minimising Conflicting Assumptions.}
+		
 	\pagebreak
 	
-	\section{Introduction}
+	\tableofcontents
+	\pagebreak
+	\section{Introduction to SAT}
 	\textbf{Symbols} \\
 	Boolean Satisfiability Problem: SAT \\
 	Conjunctive Normal Form (formula): CNF \\
-	Computer Science: CS \\
 	A CNF formula: $ \mathcal{F} $ (sometimes will be treated as a set of clauses) \\
 	A set of variables: $ \mathcal{V} $ \\
 	An assignment: $ \phi $ \\
 	A set of assumption: $ \mathcal{A} $ \\
 	Set of literals in $ \mathcal{V} $: $ lit(\mathcal{V}) $
-	\subsection{Introduction to SAT}
-	\paragraph{Definitions}
-	In the world of boolean formulas, a \textit{variable} can be assigned one of 2 possible values: $ True, False $. A \textit{literal} is an instance of a variable or it's negation, i.e. if $ x $ is a variable, then $ x $ and $ \bar{x} $ are the 2 possible literals of $ x $. Given a set of variables $ \mathcal{V} $, let $ lit(\mathcal{V}) $ be the set of all possible literals in $ \mathcal{V} $. A \textit{clause} is disjunction (OR) of literals and a formula is said to be in \textit{Conjunctive Normal Form} (CNF) if it's a conjunction (AND) of clauses. For example: $\mathcal{F} = (x_1 \lor \bar{x_2}) \land (x_2 \lor x_3) $ is a CNF, and $ \mathcal{V}=\{x_1,x_2,x_3\} $ is the group of variables (notice that $ \mathcal{V} $ doesn't include $ \bar{x_2} $). \\ An \textit{assignment} for the variables is a function $ \phi : \mathcal{V} \rightarrow \{True, False\} $.  By $ Unsat(\mathcal{F},\phi) $ we denote the set of clauses falsified by $ \phi $. $ \phi $ \textit{satisfies} $ \mathcal{F} $ if $ \mathcal{F} $ is evaluated to $ True $ under the assignment $ \phi $, i.e. $ Unsat(\mathcal{F},\phi) = \emptyset $. If a formula has a satisfying assignment, it is said to be \textit{satisfiable}. If no such assignment exists, then it is said to be \textit{unsatisfiable}. \\
+
+	\subsection{Definitions}
+	In the world of boolean formulas, a \textit{variable} can be assigned one of 2 possible values: $ True, False $. A \textit{literal} is an instance of a variable or it's negation, i.e. if $ x $ is a variable, then $ x $ and $ \bar{x} $ are the 2 possible literals of $ x $. Given a set of variables $ \mathcal{V} $, let $ lit(\mathcal{V}) $ be the set of all possible literals in $ \mathcal{V} $. A \textit{clause} is a disjunction (OR) of literals and a formula is said to be in \textit{Conjunctive Normal Form} (CNF) if it's a conjunction (AND) of clauses. For example: $\mathcal{F} = (x_1 \lor \bar{x_2}) \land (x_2 \lor x_3) $ is a CNF, and $ \mathcal{V}=\{x_1,x_2,x_3\} $ is the group of variables (notice that $ \mathcal{V} $ doesn't include $ \bar{x_2} $). \\ An \textit{assignment} for the variables is a function $ \phi : \mathcal{V} \rightarrow \{True, False\} $.  By $ Unsat(\mathcal{F},\phi) $ we denote the set of clauses falsified by $ \phi $. $ \phi $ \textit{satisfies} $ \mathcal{F} $ if $ \mathcal{F} $ is evaluated to $ True $ under the assignment $ \phi $, i.e. $ Unsat(\mathcal{F},\phi) = \emptyset $. If a formula has a satisfying assignment, it is said to be \textit{satisfiable}. If no such assignment exists, then it is said to be \textit{unsatisfiable}. \\
 	Now we can define SAT. The Boolean Satisfiability Problem is the problem of determining whether a given boolean formula, usually CNF, is satisfiable. Formally, given $ \mathcal{F} $, determine whether it has a model (denoted $ \mathcal{F} \in SAT $) or not (denoted $ \mathcal{F} \in UNSAT $))
-	\paragraph{In Theory} SAT is interesting because it was the first problem proven to be \textit{NP-Complete}, in 1971. Ever since, the most straight forward way to prove a given problem $ L $ is NP-Complete was by showing a \textit{reduction} from SAT to $ L $. Of course, being an NP-Complete problem, finding a polynomial algorithm for solving SAT would mean that $ P=NP $, closing the most famous problem in CS. Since it's widely believed that $ P \neq NP $, the approach to solving such NP-Complete problems in real life applications is simply to try to avoid them as much as possible, since, in most cases, solving the problem would require exponential time. \\
-	This was a very important motivation when designing the algorithms presented in this paper; though SAT couldn't be completely avoided in this context, it was desirable to try to reduce, as much as possible, the number of times in which an algorithm is required to solve a SAT instance.
-	\pagebreak
-	\subsection{Introduction to SAT-Solving}
+	\subsection{Motivation}
+	\paragraph{In Theory} SAT is interesting because it was the first problem proven to be \textit{NP-Complete}, in 1971. Ever since, the most straight forward way to prove a given problem $ L $ is NP-Complete was by showing a \textit{reduction} from SAT to $ L $. Of course, being an NP-Complete problem, finding a polynomial algorithm for solving SAT would mean that $ P=NP $, closing the most famous problem in Computer Science.\\Since it's widely believed that $ P \neq NP $, the approach to solving such NP-Complete problems in real life applications is simply to try to avoid them as much as possible, since, in most cases, solving the problem would require exponential time. \\
+	This was a very important motivation when designing the algorithms presented in this paper; though SAT couldn't be completely avoided in this context, it was desirable to try to reduce, as much as possible, the number of times in which an algorithm is required to solve a SAT instance \footnote{denoted \textit{solver call}}.	\pagebreak
+	\section{Introduction to SAT-Solving}
 	\paragraph{History}
 	\begin{itemize}
 		\item 1960 The first SAT solving algorithm DP ( Davis, Putnam), originally for checking the validity of a first-order logic formula
@@ -88,8 +93,8 @@
 		\item Automated Planning and Scheduling in Artificial Intelligence - still one of the best approaches for optimal planning.
 	\end{itemize}
 	
-	As mentioned before, SAT is a NP-Complete problem, and therefore all the known complete algorithms have exponential runtime in the worst case. As showed before it has different uses in many fields, thus optimizing the solvers for this problem has a direct affect on the technological advancement of our world. The basic techniques for SAT solving are discussed next.
-
+	As mentioned before, SAT is a NP-Complete problem, and therefore all the known complete algorithms have exponential runtime in the worst case. As shown before, it has different uses in many fields, thus optimizing the solvers for this problem has a direct affect on the technological advancement of our world. The basic techniques for SAT solving are discussed next.
+	\subsection{Techniques and Algorithms}
 	\paragraph{The Resolution Rule} Given the two clauses $ (I \lor x_1 \lor x_2 \lor ... \lor x_n)  \land (\bar{I} \lor y_1 \lor y_2 \lor ... \lor y_m)$ the \textit{Resolvent} clause is $ (x_1 \lor x_2 \lor ... \lor x_n \lor y_1 \lor y_2 \lor ... \lor y_m) $. \\
 	Special cases:
 	\begin{itemize}
@@ -135,8 +140,8 @@
 	\paragraph{Pure Literal Deletion} If a literal $ l $ never occurs negated in $ \mathcal{F} $ then each clause containing $ l $ may be deleted from the formula. This is correct because each clause containing $ l $ can be satisfied by setting $ l $ to True without sacrificing other clauses.
 	
 	\subsubsection{DPLL}
-	Davis-Putnam-Logemann-Loveland algorithm was introduced in 1962 and is based on the earlier Davis-Putnam algorithm, though it contains few algorithmic improvements. \\
-	The basic idea is simplification and case splitting. Simplification is achieved by applying unit propagation and pure literal deletion to the formula. In case splitting a literal $ l $ is chosen \textit{wisely}\cite{BranchingH} then two recursive calls is performed with $ l $ being set to $ True $ and $ False $ respectively. The algorithm stops when $ \bot $ is implied, there are no clauses left - meaning all literals are assigned - or after all assignments have been tried.
+	Davis-Putnam-Logemann-Loveland algorithm was introduced in 1962 and is based on the earlier Davis-Putnam algorithm, though it contains a few algorithmic improvements. \\
+	The basic idea is simplification and case splitting. Simplification is achieved by applying unit propagation and pure literal deletion to the formula. In case splitting a literal $ l $ is chosen \textit{wisely}\cite{BranchingH}, then two recursive calls are performed with $ l $ being set to $ True $ and $ False $ respectively. The algorithm stops when $ \bot $ is implied, there are no clauses left - meaning all literals are assigned - or after all assignments have been tried.
 	\\
 	\begin{algorithm}[H]
 		\KwIn{CNF formula $ \mathcal{F} $}
@@ -152,33 +157,34 @@
 		\eIf{$ l = nil $}{return $true$}{return DPLL($\mathcal{F} \cup \{l\})$ or $ DPLL(\mathcal{F} \cup \{\neg l\}) $}
 	\caption{DPLL Algorithm}
 	\end{algorithm}
-	Since it was published, the algorithm has been a hot topic in research and SAT solving competitions. In recent years the work on improving the algorithm has been done on alternative directions, from defining new data structures in order to perform different operations faster (unit propagation), to trying variant policies for choosing the case splitting literal.\\ The most significant improvements are non-chronological backtracking (backjumping) and clause learning. These refinements describe a method of backtracking and learning when reaching a conflict clause. The result are state of the art Conflict-Driven Clause Learning (CDCL) SAT solvers.
+	Since it was published, the algorithm has been a hot topic in research and SAT solving competitions. In recent years, the work on improving the algorithm has been done on alternative directions, from defining new data structures in order to perform different operations faster (unit propagation), to trying variant policies and heuristics for choosing the case splitting literal.\\ The most significant improvements are non-chronological backtracking (back-jumping) and clause learning. These refinements describe a method of backtracking and learning when reaching a conflict clause. The result are state of the art Conflict-Driven Clause Learning (CDCL) SAT solvers.
 
 	\subsubsection{CDCL}
 	\textit{Conflict-Driven Clause Learning} can be thought of as a an expansion to \textit{DPLL}; every time a conflict is reached, a new clause is "learnt", i.e. a new clause is added to the problem - this clause resembles the conflict and tries to "catch" it sooner in the future. Think of it as follows: the conflict is usually caused by some partial assignment - the non-chronological backtracking (mentioned before) does not necessarily avoid the same conflict, as the same partial assignment might be reached in some other branch of the search tree, and thus, the same conflict might be generated. But clause learning successfully avoids the same conflict \cite{PracticalSatSolving}. Most modern SAT-solvers are based on the CDCL algorithm, including Mini-SAT \cite{MinisatDoc}.
 	
 	\pagebreak
-	\section{Defining the problem}
-	\subsection{Minimal set of Conflicting Assumptions}
-	In this section, we define a new problem, one that uses the definitions presented in section 1.1.
-	\paragraph{Definitions} A \textit{partial assignment} for $ \mathcal{V} $ is a partial function in $ \mathcal{V} $, i.e. a function $ \phi' : \mathcal{V}' \rightarrow \{True, False\} $ s.t. $\mathcal{V}' \subsetneq \mathcal{V}$. A \textit{set of assumptions} $ \mathcal{A} $ is a partial assignment. $ \mathcal{A} $ can be thought of as a subset of literals in $\mathcal{V}$ that doesn't include a literal and it's negation, formally $ \mathcal{A} \subsetneq lit(\mathcal{V}) $ s.t. $ \forall a \in \mathcal{A} : \bar{a} \notin \mathcal{A} $.\\
-	$ \mathcal{F} $ is said to be \textit{satisfiable under the assumptions} $ \mathcal{A} $ if there exists a satisfying assignment $ \phi $ that agrees with $ \mathcal{A} $ (the partial function $ \phi' $ that defines $ \mathcal{A} $ can be extended to the full function $ \phi $). Intuitively, an assumption is some sort of a constraint. The more assumptions we have, the harder it is to find a satisfying assignment.
-	\paragraph{Problem definition: MCA} Given $ \mathcal{F} $ and $ \mathcal{A} $ s.t. $ \mathcal{F} $ is unsatisfiable under $ \mathcal{A} $, the \textit{Minimal Conflicting Assumptions} (MCA) of $ \mathcal{A} $ is a subset $ \mathcal{A}' \subseteq \mathcal{A} $ s.t. $ \mathcal{F} $ is unsatisfiable under $ \mathcal{A}' $ and $ \forall a \in \mathcal{A}' $ : $ \mathcal{F} $ is satisfiable under $ \mathcal{A}' \setminus \{a\} $, denoted $ \mathcal{A}' \in MCA(\mathcal{F},\mathcal{A}) $. Intuitively, we want to know which assumptions caused the unsatisfiability (conflict), but we want a minimal set of assumptions that did so. The set is minimal in the sense that removing any assumption from it will eliminate the unsatisfiability.\\
+	\section{Minimal set of Conflicting Assumptions}
+
+	In this section, we define a new problem - this is the main problem we deal with in this paper.
+	\subsection{Definitions} A \textit{partial assignment} for $ \mathcal{V} $ is a partial function in $ \mathcal{V} $, i.e. a function $ \phi' : \mathcal{V}' \rightarrow \{True, False\} $ s.t. $\mathcal{V}' \subsetneq \mathcal{V}$. A \textit{set of assumptions} $ \mathcal{A} $ is a partial assignment. $ \mathcal{A} $ can be thought of as a subset of literals in $\mathcal{V}$ that doesn't include a literal and it's negation, formally $ \mathcal{A} \subsetneq lit(\mathcal{V}) $ s.t. $ \forall a \in \mathcal{A} : \bar{a} \notin \mathcal{A} $.\\
+	$ \mathcal{F} $ is said to be \textit{satisfiable under the assumptions} $ \mathcal{A} $ if there exists a satisfying assignment $ \phi $ that agrees with $ \mathcal{A} $ (the partial function $ \phi' $ that defines $ \mathcal{A} $ can be extended to the full function $ \phi $). Intuitively, an assumption is some sort of a constraint. The more assumptions we have, the harder it is to find a satisfying assignment. If there's no satisfying assumption for $ \mathcal{F} $ under $ \mathcal{A} $, then $ \mathcal{A} $ is called a \textit{conflicting set of assumptions}. A conflicting set of assumptions  $ \mathcal{A} $ is said to be \textit{minimal} if $ \mathcal{F} $ is \textbf{satisfiable} under every subset  $ \mathcal{A'} \subsetneq \mathcal{A} $ - intuitively, it's a minimal set (in respect to set inclusion) that doesn't compromise the unsatisfiability.
+	\paragraph{Problem definition: MCA} Given $ \mathcal{F} $ and $ \mathcal{A} $ s.t. $ \mathcal{F} $ is unsatisfiable under $ \mathcal{A} $, the \textit{Minimal Conflicting Assumptions} (MCA) of $ \mathcal{A} $ is a subset $ \mathcal{A}' \subseteq \mathcal{A} $ s.t. $ \mathcal{F} $ is unsatisfiable under $ \mathcal{A}' $ and $ \forall a \in \mathcal{A}' $ : $ \mathcal{F} $ is satisfiable under $ \mathcal{A}' \setminus \{a\} $, denoted $ \mathcal{A}' \in MCA(\mathcal{F},\mathcal{A}) $, i.e., $ \mathcal{A}' $ is a minimal set of conflicting assumptions . Intuitively, we want to know which assumptions caused the unsatisfiability (conflict), but we want a minimal set of assumptions that did so. The set is minimal in the sense that removing any assumption from it will eliminate the unsatisfiability.\\
+	\subsection{Examples}
 	\paragraph{Example 1 } given  $\mathcal{F} = (x_1 \lor x_2) \land (\bar{x_2} \lor x_3)$ and $\mathcal{A} =\{\bar{x_1}, \bar{x_3}\}$. We can see that $ \mathcal{F} $ is unsatisfiable under $ \mathcal{A} $. $ \mathcal{A} $ is the MCA of itself, since removing $\bar{x_1}$ or $\bar{x_3}$ from it will eliminate the unsatisfiability (for example, the assignment $ \phi(x_1)=True,\phi(x_2)=False, \phi(x_3)=False $ extends $ \mathcal{A} \setminus \{\bar{x_1}\} $ and satisfies $\mathcal{F}$ - similar argument can be used to show that $\bar{x_3}$ is also necessary for the unsatisfiability). This example demonstrates that the MCA can be equal to the original set of assumptions.
 	\paragraph{Example 2 } given  $\mathcal{F} = (x_1 \lor x_2 \lor x_5) \land (x_3 \lor x_5) \land (\bar{x_5} \lor \bar{x_4})$ and $\mathcal{A} =\{\bar{x_1}, \bar{x_2}, \bar{x_3}, x_4\}$. Again, we can see that $ \mathcal{F} $ is unsatisfiable under $ \mathcal{A} $. $ x_4 $ implies $ \bar{x_5} $ but $\bar{x_1}$ and $ \bar{x_2}$ imply $ x_5 $. That's a conflict, so $\mathcal{A}_1 =\{\bar{x_1}, \bar{x_2}, x_4\}$ is an MCA. But also $ x_3 $ by itself implies $ x_5 $, so it can replace both $ \bar{x_1}, \bar{x_2} $ in $ \mathcal{A}_1 $ and we get a new MCA, $\mathcal{A}_2 =\{\bar{x_3}, x_4\}$. 
 	This example demonstrates that the MCA is not necessarily unique. Furthermore, it demonstrates that "size doesn't matter", i.e. the number of elements in the MCA doesn't affect its status as an MCA.
-	
-	\paragraph{Next Step} The main focus of the rest of this paper will be designing and implementing efficient algorithms that, given $\mathcal{F}, \mathcal{A}$, compute an MCA.
-	
-	\subsection[Similar Problem]{Minimizing Conflicting Clauses}
-	\paragraph{Definitions} A clause $ C $ is called a \textit{transition clause} if $ \mathcal{F} \in UNSAT$ and $ \mathcal{F} \setminus \{C\} \in SAT $.
+	\\\\
+	\paragraph{Next Step} The main focus of the rest of this paper will be designing and implementing efficient algorithms that, given $\mathcal{F}, \mathcal{A}$, compute an MCA. But first, let's get familiar with a very similar problem.
+	\pagebreak
+	\section{Minimally Unsatisfiable Sub-formula}
+	\subsection{Definitions} A clause $ C $ is called a \textit{transition clause} if $ \mathcal{F} \in UNSAT$ and $ \mathcal{F} \setminus \{C\} \in SAT $.
 	We treat $ \mathcal{F} $ as a set of clauses. $ \mathcal{F} $ is \textit{minimally unsatisfiable} if $ \mathcal{F} \in UNSAT $ and for any $ \mathcal{F}' \subsetneq \mathcal{F} $, $ \mathcal{F}' \in SAT$. Equivalently, $ \mathcal{F} $ is minimally unsatisfiable, if every clause in $ \mathcal{F} $ is a transition clause. Given a formula $ \mathcal{F} \in UNSAT $, a \textbf{\textit{Minimally Unsatisfiable Sub-formula}} of $ \mathcal{F} $ is any $ \mathcal{F}' \subseteq \mathcal{F} $ s.t. $ \mathcal{F}' $ is minimally unsatisfiable, denoted $ \mathcal{F}' \in MUS(\mathcal{F}) $.
 
 	\paragraph{Problem definition: MUS} Given $ \mathcal{F} $, compute any $ \mathcal{F}' \in MUS(\mathcal{F}) $. \\
 	
-	MUSes find a wide range of practical applications. For example, MUS are used in a number of verification tasks to extract a concise description of inconsistency. As a result, development of effective MUS extraction algorithms is currently a very active area of research\cite{Rotation}.
+	MUSes find a wide range of practical applications. For example, MUS are used in a number of verification tasks to extract a concise description of inconsistency. As a result, development of effective MUS extraction algorithms is currently a very active area of research\cite{Rotation} - the following subsection will demonstrate how a solution to our problem (MCA) directly provides a solution for MUS.
 	
-	\paragraph{Connection to MCA} The definition of MUS is very similar to MCA. In both problems, given an unsatisfiable instance, we search for a minimal (in respect to set inclusion) subset of objects that is responsible for the unsatisfiability. We will in fact prove that MUS Extraction can be reduced to Computing MCA.
+	\subsection{Reduction to MCA} The definition of MUS is very similar to MCA. In both problems, given an unsatisfiable instance, we search for a minimal (in respect to set inclusion) subset of objects that is responsible for the unsatisfiability. We will in fact prove that MUS Extraction can be reduced to Computing MCA. The reduction was implemented in a \textit{bash} script, and can be found in our \textit{github} repository \cite{MCArep}.
 	
 	\begin{theorem}
 		MUS Extraction can be reduced to Computing MCA
@@ -191,20 +197,19 @@
 			\item $ \mathcal{F}=\{c'_i | c_i = (x_1 \lor ... \lor x_{k_i})\in\mathcal{G}, c'_i= (x_1 \lor ... \lor x_{k_i} \lor \bar{a_i}) \} $
 			\item $ \mathcal{A}=\{a_1,...,a_m\} $
 		\end{itemize}
-	$ \mathcal{F} $ is UNSAT under $ \mathcal{A} $ since none of the newly added literals $ \bar{a_1},...,\bar{a_m} $ can satisfy any clause (because $ \mathcal{A} $ implies, by definition, $ \{a_1,...,a_m\} $, which evaluate every $ \bar{a_i} $ to False), and therefore we go back to satisfying $ \mathcal{G}$. But we assume $ \mathcal{G} \in UNSAT $. \\
+	$ \mathcal{F} $ is UNSAT under $ \mathcal{A} $ since none of the newly added literals $ \bar{a_1},...,\bar{a_m} $ can satisfy any clause (because $ \mathcal{A} $ implies, by definition, $ \{a_1,...,a_m\} $, which evaluate every $ \bar{a_i} $ to False), and therefore we go back to satisfying $ \mathcal{G}$. But we've assumed $ \mathcal{G} \in UNSAT $. \\
 	Now we prove the logical biconditional:
 	\begin{itemize}
-		\item Given a subset $ \mathcal{G}'$ s.t. $ {G}' \in MUS(\mathcal{G}) $, then no assignment satisfies $ \mathcal{G}' $, so no assignment satisfies $ \mathcal{F} $ under the corresponding subset of assumptions $ \mathcal{A}'$. Also, for each $ c_i \in \mathcal{G}'$, there exists an assignment $ \phi_i $ that satisfies $ \mathcal{G}' \setminus \{c_i\}$. Let us define a new assignment $ \Phi_i $ that gives every original variable $ x \in Var(\mathcal{G}) $ the value $ \phi_i(x) $, every $ a \in \mathcal{A}'\{a_i\}$ the value $ True $ and every other indicator $ False $. $ \Phi_i $ satisfies $ \mathcal{F} $ under $\mathcal{A}'\{a_i\}$. Therefore, $ \mathcal{A}' \in MCA(\mathcal{F,A}) $.
+		\item Given a subset $ \mathcal{G}'$ s.t. $ {G}' \in MUS(\mathcal{G}) $, no assignment satisfies $ \mathcal{G}' $, so no assignment satisfies $ \mathcal{F} $ under the corresponding subset of assumptions $ \mathcal{A}'$. Also, for each $ c_i \in \mathcal{G}'$, there exists an assignment $ \phi_i $ that satisfies $ \mathcal{G}' \setminus \{c_i\}$. Let us define a new assignment $ \Phi_i $ that gives every original variable $ x \in Var(\mathcal{G}) $ the value $ \phi_i(x) $, every $ a \in \mathcal{A}'\{a_i\}$ the value $ True $ and every other indicator $ False $. $ \Phi_i $ satisfies $ \mathcal{F} $ under $\mathcal{A}'\{a_i\}$. Therefore, $ \mathcal{A}' \in MCA(\mathcal{F,A}) $.
 		\item Given a subset $ \mathcal{A}'$ s.t. $ \mathcal{A}' \in MCA(\mathcal{F,A}) $, a very similar argument can show that the corresponding sub-formula $ {G}' $ is in $ MUS(\mathcal{G})$.
 	\end{itemize}
 	\end{proof}
-
-	\paragraph{Exploiting Similarities} In section 3, we will demonstrate an algorithm, empirically proven \cite{MUSRMR} to be efficient on practical instances, for MUS Extraction. We will then present a new algorithm for computing MCAs that uses the same technique used by the efficient MUS extractor.
+	\paragraph{Exploiting Similarities} In subsection \textbf{7.1}, we will demonstrate an algorithm, empirically proven \cite{Rotation} to be efficient on practical instances, for MUS Extraction. We will then present a new algorithm for computing MCAs that uses the same technique used by the efficient MUS extractor.
 
 	\pagebreak
 	\section{Assumption Minimiser}
 	\subsection{Overview}
-		The Assumption Minimiser (a.k.a. \textit{mca program}) is an extension to \textit{MiniSat}\footnote{Minisat in an open source SAT solver, it was introduced in 2003 to provide people with a simple and efficient solver. For more info visit \url{http://minisat.se}.}. It can be used in two ways:
+		The Assumption Minimiser (a.k.a. \textit{mca program}) is an extension to \textit{MiniSAT}\footnote{Minisat in an open source SAT solver, it was introduced in 2003 to provide people with a simple and efficient solver. For more info visit \url{http://minisat.se}.}. This is extension was built as part of this project. It can be used in two ways:
 		\begin{enumerate}
 				\item As an Incremental Minimiser. The program has a basic API which enables it to be used repeatedly as with incremental SAT solvers. The basic actions are described in the next section.
 				\item As CLI tool. The program can be invoked from the command line providing the CNF formula, assumptions and the algorithm desired for minimizing. It can be also invoked with the original MiniSat parameters without using the new feature.
@@ -230,10 +235,10 @@
 			}
 		}
 	\end{center}
-
+\pagebreak
    	\textbf{API description}
     \begin{itemize}
-    	\item \textbf{Constructors:} As mentioned before, the minimiser uses $MiniSat$'s solver and data structure. The solver itself should be provided by the user, whereas the minimiser will use the same instance provided. This grants the user direct access to the solver for any actions desired; although it's not recommended to interfere with the solver while one of the minimising algorithms is active. It's also possible to provide a set of initial assumptions, that will be minimised later using one of the algorithms.    	
+    	\item \textbf{Constructors:} As mentioned before, the minimiser uses $MiniSAT$'s solver and data structure. The solver itself should be provided by the user, whereas the minimiser will use the same instance provided. This grants the user a direct access to the solver for any actions desired; although it's not recommended to interfere with the solver while one of the minimising algorithms is active. It's also possible to provide a set of initial assumptions, that will be minimised later using one of the algorithms.    	
     	
     	\item \textbf{addAssumption(Literal):} This can be used if the user wishes to extend the set of assumptions
     	
@@ -248,18 +253,21 @@
     	\item \textbf{printStats():} The method will print on the screen all the statistics from the last activation of the minimization algorithms.
     	
     	\item \textbf{Minimization algorithms:} This is the core of the program, each call to one of the four algorithms will activate the minimization process, this process might take a while, as we have multiple calls to the SAT solver. The $ mca $ will be returned in the vector that was provided. Further detail on the algorithms in the next section.
+    	
     \end{itemize}
 
+	\paragraph{Implementation:} all that's mentioned above can be found at a our public \textit{github} repository \cite{MCArep}.
 	
 	\pagebreak
 	\section{Basic Algorithms}
-	In this section, the basic algorithms in the program are introduced. They're inspired from algorithms for MUS extraction\cite{PracticalAlgs}, and are all local search based. The basic algorithms are the Iterative Insertion (insertion-based) and Iterative Deletion (deletion-based), and then we present some optimizations to the iterative deletion algorithm.
+	In this section, the basic algorithms in the program are introduced. They're inspired by algorithms for MUS extraction\cite{PracticalAlgs}, and are all local search based. The basic algorithms are the Iterative Insertion (insertion-based) and Iterative Deletion (deletion-based), and then we present some optimizations to the iterative deletion algorithm.
 	\subsection{Iterative Insertion}
+		The first algorithm tries to compose the minimal set from scratch. It starts off with an \textit{initial} empty set of \textit{(vital)} assumptions then inserts 1 assumption at a time (hence, iterative insertion) and solves the formula under the current set, until the instance becomes unsatisfiable under this set. By some sort of magic (see claim 1), the last assumption added is a \textit{vital} assumption. This whole process discovers 1 vital assumption, which is then added to the initial set of vital assumptions and the algorithm starts over. The algorithm halts when the instance is unsatisfiable under the \textit{initial} set of vital assumptions.\\\\
 		\begin{algorithm}[H]
 		\KwIn{Unsatisfiable CNF formula $ \mathcal{F} $ under set of assumptions $ \mathcal{A} $}
 		\KwOut{MCA $ \mathcal{M} $ }
 		$ \mathcal{M} $ $\leftarrow$ $\emptyset$\\
-		\While{solve($ \mathcal{F} $, $ \mathcal{M} $) $\neq$ SAT} {
+		\While{solve($ \mathcal{F} $, $ \mathcal{M} $) $=$ SAT} {
 			$  S  \leftarrow  \mathcal{M} $\\
 			\ForEach{$ a \in \mathcal{A} \backslash \mathcal{M} $}{
 				$ S \leftarrow  S \cup \{a\} $\\
@@ -272,17 +280,17 @@
 		return $ \mathcal{M} $
 		\caption{Iterative Insertion}
 	\end{algorithm}
-	The algorithm tries to compose the minimal set from scratch. It starts off with an empty set of (vital) assumptions and will stop the search when the formula is unsatisfiable under the  assumptions. In each step a temporary set containing the current vital assumptions is initialized, then it begins to scan the rest of the assumptions, adding them one by one to the temporary set. If the formula is found to be unsatisfiable during this process, the last assumption scanned is added to the minimal set, then the algorithm jumps back to checking the satisfiability of the formula under the vital set.
 	
 	\paragraph{Correctness} Directly implied by the following claim:
 	\begin{claim}
 		Let $ \mathcal{F} $ be a CNF formula, $ \mathcal{A} $ a set of assumptions s.t. $ \mathcal{F} $ is UNSAT under $ \mathcal{A} $. Let $ S \subseteq \mathcal{A} $, $ a \in \mathcal{A} \backslash S $ s.t. $ \mathcal{F} $ is SAT under $ S $ and UNSAT under $ S \cup \{a\} $. Then there exists an MCA that includes $ a $.
 	\end{claim}
 	Since the algorithm composes the minimal set according to the above rule and halts at the moment the formula is unsatisfiable under this set, guarantees that the result is minimal.
-	\paragraph{Complexity} As can be noticed, there are two nested loops where each one might perform $ \mathcal{O \left( | M |\right) } $ iterations, so the worst case complexity is $ O \left( | M |^\text{2} \right) $ solver calls.
-	
+	\paragraph{Complexity} As can be noticed, there are two nested loops where each one might perform $ \mathcal{O \left( | M |\right) } $ iterations, so the worst case complexity is $ O \left( | M |^\text{2} \right) $ solver calls. That's not good enough, and we will see next that a linear number of solver calls could be sufficient. However, iterative deletion was presented because it is in fact used and preferred for a limited number of applications.
 	
 	\subsection{Iterative Deletion}
+	Now, we present a different approach that, as promised, makes a linear number of calls in the worst case. As a result, this approach is much more widely used.\\
+	In the deletion-based approach, we start from the entire set of assumptions, and delete 1 at a time (hence, iterative deletion). If the instance became satisfiable after deleting the assumption, then that assumption was \textit{vital} for the unsatisfiability, therefore it is restored to the set and marked as \textit{vital}. Formally:\\\\
 		\begin{algorithm}[H]
 			\KwIn{Unsatisfiable CNF formula $ \mathcal{F} $ under set of assumptions $ \mathcal{A} $}
 			\KwOut{MCA $ \mathcal{M} $ }
@@ -295,9 +303,9 @@
 			return $ \mathcal{M} $
 			\caption{Iterative Deletion}
 		\end{algorithm}
-		In contrary to the previous algorithm, this one begins with the vital set containing all the assumptions. Then it tries to remove each one at a time, if the formula is satisfiable under the set now then the assumption is vital and is restored to the set.
+		%In contrary to the previous algorithm, this one begins with the vital set containing all the assumptions. Then it tries to remove each one at a time, if the formula is satisfiable under the set now then the assumption is vital and is restored to the set.
 		
-		\paragraph{Correctness} Directly implied by the following claim:
+		\paragraph{Correctness} Directly implied by the following claim :
 		\begin{claim}
 			Let $ \mathcal{F} $ be a CNF formula, $ \mathcal{A} $ a set of conflicting assumptions and $  a \in \mathcal{A} $. If $ \mathcal{F} $ is UNSAT under $ \mathcal{A} \backslash \{a\} $ then there exists a MCA that doesn't include $ \{a\} $. If $ \mathcal{F} $ is SAT under $ \mathcal{A} \backslash \{a\} $ then $ \{a\} $ is included in every MCA.
 		\end{claim}
@@ -305,6 +313,7 @@
 		\paragraph{Complexity} The algorithm scans the set of assumptions once then the worst case complexity is $ O \left( | M | \right)  $ solver calls.
 		
 		\subsubsection{Iterative Deletion with Outside Help}
+		\msat has the ability to solve the problem under assumptions, and as discussed in the first chapter, it has an internal conflict handling mechanism. The mechanism \textbf{tries} to preform assumption minimization, but is not guaranteed to do so. This mechanism can be exploited in the iterative deletion, simply by marking the assumptions that \msat "throws away" as \textit{non-vital} and thus we don't have to check them with a separate solver call.\\\\
 			\begin{algorithm}[H]
 				\KwIn{Unsatisfiable CNF formula $ \mathcal{F} $ under set of assumptions $ \mathcal{A} $}
 				\KwOut{MCA $ \mathcal{M} $ }
@@ -321,17 +330,16 @@
 				\caption{Iterative Deletion With Outside Help}
 			\end{algorithm}
 		
-		\msat has the ability to solve the problem under assumptions, and as discussed in the first chapter, it has an internal conflict handling mechanism. So, in case the problem is unsatisfiable, \msat can provide the conflicting assumptions.
-		
 		\paragraph{Correctness} Same as the previous algorithm. The call to \msat in case the formula is unsatisfiable will only remove non conflicting assumptions from the set.
 		
-		\paragraph{Complexity} Also $ O \left( | M |\right) $ solver calls, as the information that's used from the solver is gathered during the $ solve $ method. In addition, set operations can be done in constant time.
+		\paragraph{Complexity} Also $ O \left( | M |\right) $ solver calls, as the information that's used from the solver is gathered during the $ solve $ method. In addition, set operations can be done in constant time. So the number of solver calls could only be reduced.
 		
 	\pagebreak
-	\section{Rotation}
-	\paragraph{Introduction} The \textit{Model Rotation} we use for MCA is inspired by the same technique used for MUS. MUS algorithms, like MCA algorithms, usually follow one of the approaches: insertion-based approach or deletion-based approach. And, again like MCA algorithms, the bottleneck of all approaches is the number of calls to the SAT-solver\cite{Rotation}. The \textit{Model Rotation} technique tries to minimize the number of SAT-solver calls, by analysing the model returned by the solver.
+	\section{Model Rotation}
+	\paragraph{Introduction} The \textit{Model Rotation} we use for MCA is inspired by the same technique used for MUS. MUS algorithms, like MCA algorithms, usually follow one of the approaches: insertion-based approach or deletion-based approach. And, again like MCA algorithms, the bottleneck of all approaches is the number of calls to the SAT-solver\cite{Rotation}. The \textit{Model Rotation} technique tries to minimize the number of SAT-solver calls, by analysing the model returned by the solver, and trying to discover additional \textit{vital assumptions}.
 		
-	\subsection{Rotation in Conflicting Clauses}
+	\subsection{Rotation in MUS}
+	It's only right to present \textit{Model Rotation} in its original context, to understand how it works and how we can use it for our own problem.\\
 	We start by stating the following claim:
 	\begin{claim}
 		Let $ \mathcal{F} $ be an unsatisfiable formula. Then $ C \in \mathcal{F} $ is a transition clause if and only if there exists an assignment $ \phi $ such that $ Unsat(\mathcal{F}, \phi) = \{C\} $
@@ -339,15 +347,14 @@
 	
 	Model Rotation exploits the claim. Let $ C $ be a transition clause detected by a solver (by invoking it on the formula $ \mathcal{F} \setminus \{C\} $), and let $ \phi $ be the model returned by the solver, i.e. $ Unsat(\mathcal{F}, \phi) = \{C\} $. Suppose we "rotate" $ \phi $ by changing the assignment of a single variable $ x \in C $ (assign it $ False $ if it was assigned $ True $ and vice versa), let's call the new assignment $ \phi' $. It holds that $ C \notin  Unsat(\mathcal{F}, \phi') $. By claim 3, if $ Unsat(\mathcal{F}, \phi') $ contains exactly 1 clause, $ C' $, then $ C' $ is also a transition clause. This is the basic \textit{rotation} approach. The \textbf{Recursive Model Rotation} \cite{Rotation} can be obtained by rotating the assignment $ \phi' $ by some variable $ x' \in C' $, thus constructing a new assignment $ \phi'' $, and going on recursively.
 	
-	\subsection{Rotation in Conflicting Assumptions}
-	Let's try to understand, abstractly, the notion of the technique we've just presented, in the context of deletion-based approaches. In the basic approach, a single solver call may identify a single vital item (in the MUS case, a transition clause), and consequently the desired result must contain it. Using the rotation technique, another vital item can be identified without an additional solver call. In the case of MCA, the vital item is a \textit{vital assumption}, i.e. an assumption which is necessary for the \textit{unsatisfiability} of the formula.\\
-	
-	Let's try to apply Model Rotation on the problem. Again, we assume $ \mathcal{F} $ is UNSAT under $ \mathcal{A} $. Given 2 assumptions $ a,b \in \mathcal{A} $, assume $ \mathcal{F} $ is SAT under $ \mathcal{A}\setminus \{a\} $, and let $ \phi _a $ be the assignment (returned by the solver) that satisfies $ \mathcal{F} $ and $ \mathcal{A}\setminus \{a\} $. By claim 2, $ a $ is a vital assumption. Let  $ \phi _b $ be the assignment constructed from $ \phi _a $ by rotating $ a $ and $ b $. Note that this new assignment satisfies every assumption \textbf{except for} $ b $. If it holds that $ \mathcal{F} $ is SAT under $ \phi_b $, then, again by claim 2, $ b $ is a vital assumption. This is the basic \textit{Model Rotation} in the MCA context.\\Notice that here, as well, rotation can be applied recursively, each time rotating the assignment by \textbf{any} variable (and not just assumptions). If it any point, we reach an assignment $ \phi _x $ that satisfies all of the assumptions except for $ x $, then $ x $ is a vital assumption. This is the \textit{Recursive Model Rotation}.
+	\subsection{Rotation in MCA}
+	Let's try to understand, abstractly, the notion of the technique we've just presented, in the context of deletion-based approaches. In the basic (deletion-based) approach, a single solver call may identify a single vital item (in the MUS case, a transition clause), and consequently, the desired result must contain it. Using the rotation technique, another vital item can be identified without an additional solver call. In the case of MCA, the vital item is a \textit{vital assumption}, i.e. an assumption which is necessary for the \textit{unsatisfiability} of the formula.\\
+	Let's try to apply Model Rotation on the problem, keeping claim 2 in mind (from section \textbf{6.2}). Again, we assume $ \mathcal{F} $ is UNSAT under $ \mathcal{A} $. Given 2 assumptions $ a,b \in \mathcal{A} $, assume $ \mathcal{F} $ is SAT under $ \mathcal{A}\setminus \{a\} $, and let $ \phi _a $ be the assignment (returned by the solver) that satisfies $ \mathcal{F} $ and $ \mathcal{A}\setminus \{a\} $. By claim 2, $ a $ is a vital assumption. Let  $ \phi _b $ be the assignment constructed from $ \phi _a $ by rotating $ a $ and $ b $. Note that this new assignment satisfies every assumption \textbf{except for} $ b $. If it holds that $ \mathcal{F} $ is SAT under $ \phi_b $, then, again by claim 2, $ b $ is a vital assumption. This is the basic \textit{Model Rotation} in the MCA context, and its advantage lies in the fact that checking a model is much cheaper than finding one.\\Notice that here, as well, rotation can be applied recursively, each time rotating the assignment by \textbf{any} variable (and not just assumptions). If it any point, we reach a model $ \phi _x $ that satisfies all of the assumptions except for $ x $, then $ x $ is a vital assumption. This is the \textit{Recursive Model Rotation}.
 	\paragraph{Algorithms}
 	Suppose we have an assignment $ \phi $ that satisfies $ \mathcal{A}\setminus \{a\} $. How do we choose $ b $? If we try to rotate every variable, applying the technique recursively, then we'll end up doing a brute force search over the whole assignment tree - not what we want. Then what $ b $ should we choose? The first step we have to make anyway is rotating $ a $, reaching a new assignment $ \phi' $ - as a result, a set of clauses, $ S_{\phi,\bar{a}} $, will be falsified. In fact:\\ $ S_{\phi,\bar{a}} = \{ C | \bar{a} \in C $ and every \textbf{other} literal in $ C $ is  falsified by $ \phi \} $\\
-	We'll call $ S_{\phi,\bar{a}} $ the "weak clauses of $ \bar{a} $" (under the assignment $ \phi $). Let's take a look at $ \bigcap_{C \in S_{\phi,\bar{a}}} C $, the mutual literals of $ S_{\phi,\bar{a}} $. This set surely includes $ \bar{a} $, but if contains another literal, $ x $, then $ x $ can be rotated, reaching assignment $ \phi'' $ that satisfies $ S_{\phi,\bar{a}} $.
+	We'll call $ S_{\phi,\bar{a}} $ the "weak clauses of $ \bar{a} $" (under the assignment $ \phi $). Let's take a look at $ \bigcap_{C \in S_{\phi,\bar{a}}} C $, the mutual literals of $ S_{\phi,\bar{a}} $. This set surely includes $ \bar{a} $, but if it contains another literal, $ x $, then $ x $ can be rotated, reaching assignment $ \phi'' $ that satisfies $ S_{\phi,\bar{a}} $.
 	 Let's examine the \textbf{first case}: if $ \bar{x} $ is an assumption, then we have a \textit{potential vital assumption} in our hands. Why \textit{potential}? Because some other set of clauses might be falsified - these are exactly the weak clauses of $ \bar{x} $ under the new assignment, $ S_{\phi', \bar{x}} $. So $  S_{\phi', \bar{x}}  = \emptyset $ if and only if $ \phi'' $ satisfies $ \mathcal{F} $ under $ \mathcal{A} \setminus \{\bar{x}\} $ if and only if $ \bar{x} $ is a vital assumption.
-	 This can be summarized in the following procedure:\\
+	 This can be summarized in the following procedure:\\\\
 	 \begin{algorithm}[H]
 	 	\KwIn{$ \mathcal{F} $, $ \mathcal{A} $, $ \phi $, $ pivot $ \textit{/* a, in the previous case */}}
 	 	\KwOut{ \textit{$ \mathcal{B} $ s.t. all literals in $ \mathcal{B} $ are vital assumptions} }
@@ -366,8 +373,7 @@
 	 \end{algorithm}
  
  
- 	 Let's examine the \textbf{second case}, where $ \bar{x} \notin \mathcal{A} $ . Notice that the new assignment $ \phi'' $ cannot satisfy $ \mathcal{F} $, since it satisfies $ \mathcal{A} $ and we know that $ \mathcal{F} $ is UNSAT under $ \mathcal{A} $. But now we know that the unsatisfied clauses are $ S_{\phi'',\bar{x}} $. So we can call the previous procedure, \textit{BasicRotation}, with the parameters $ (\mathcal{F} $, $ \mathcal{A} $, $ \phi'' $, $ \bar{x} )$. In fact, we can make this call \textit{BasicRotation}$ (\mathcal{F} $, $ \mathcal{A} $, $ \phi'' $, $ \bar{x} )$ whenever 
-	$ \mathcal{F} $ is UNSAT under $ \phi'' $. This is the recursive step of the algorithm, and it's demonstrated in the following procedure \textit{RecursiveRotation}:\\\\
+ 	 Let's examine the \textbf{second case}, where $ \bar{x} \notin \mathcal{A} $ . Notice that the new assignment $ \phi'' $ cannot satisfy $ \mathcal{F} $, since it satisfies $ \mathcal{A} $ and we know that $ \mathcal{F} $ is UNSAT under $ \mathcal{A} $. But now we know that the unsatisfied clauses are $ S_{\phi'',\bar{x}} $. So we can call the procedure, recursively, with the parameters $ (\mathcal{F} $, $ \mathcal{A} $, $ \phi'' $, $ \bar{x} )$. This is the recursive step of the algorithm, and it's demonstrated in the following procedure \textit{RecursiveRotation}:\\\\
 	\begin{algorithm}[H]
 		\KwIn{$ \mathcal{F} $, $ \mathcal{A} $, $ \phi $, $ pivot $ \textit{/* a, in the previous case */}}
 		\KwOut{ \textit{$ \mathcal{B} $ s.t. all literals in $ \mathcal{B} $ are vital assumptions} }
@@ -384,7 +390,7 @@
 				$ \bar{x}.isVital \leftarrow True $ \\
 				$ \mathcal{B} \leftarrow \mathcal{B} \cup \{\bar{x}\} $ \\
 			}
-			\If{$ \mathcal{F} $ is UNSAT under $ \phi'' $}{
+			\If{$ \mathcal{F} $ is UNSAT under $ \phi'' $ $ \land$ $\bar{x} \notin \mathcal{A} $}{
 				$ \bar{x}.isVital \leftarrow IN\_STACK $ \\
 				$ \mathcal{B} \leftarrow \mathcal{B}$ $ \cup $ RecursiveRotation$ (\mathcal{F} $, $ \mathcal{A} $, $ \phi'' $, $ \bar{x} )$ \\
 				$ \bar{x}.isVital \leftarrow UNKNOWN $ \\
@@ -394,11 +400,11 @@
 		\caption{RecursiveRotation}
 	\end{algorithm}
 
-	\paragraph{Correctness} By the algorithms design, the assignment, at any given time, fails to satisfy \textbf{at most} 1 assumption. A literal $ \bar{x} $ is added to $ \mathcal{B} $ only if  $ \bar{x} \in \mathcal{A} $ and there's a $ \phi'' $ that satisfies $ \mathcal{F} $ but doesn't satisfy $ \bar{x} $, which means that it is the only assumption that is not satisfied by a model, therefore it's a vital assumption by claim 2. Therefore, all literals in $ \mathcal{B} $ are vital assumptions.
+	\paragraph{Correctness} By the algorithm's design, the assignment, at any given time, fails to satisfy 1 assumption \textbf{at most}. A literal $ \bar{x} $ is added to $ \mathcal{B} $ only if  $ \bar{x} \in \mathcal{A} $ and there's a $ \phi'' $ that satisfies $ \mathcal{F} $ but doesn't satisfy $ \bar{x} $, which means that it is the only assumption that is not satisfied by a model, therefore it's a vital assumption by claim 2. Therefore, all literals in $ \mathcal{B} $ are vital assumptions.
 
 	\pagebreak
-	\subsection{Optimizing Iterative-Deletion using Rotation}
-	In section \textbf{4.2.1}, we saw how we can improve the Iterative Deletion by gaining extra information from the UNSAT calls of the solver. On the other hand, Rotation can give us extra information in the case of SAT calls, simply by calling the procedure \textit{RecursiveRotation}. Now we assume that we have a \textit{solver} object, that can \textit{solve} a CNF instance with assumptions, and can return the model\footnote{satisfying assignment} (in case the last \textit{solve} call returned \textit{SAT}). Here is the \textbf{Iterative Deletion with Recursive Model Rotation}:
+	\subsection{Optimizing Iterative Deletion using Model Rotation}
+	In section \textbf{4.2.1}, we saw how we can improve the Iterative Deletion by gaining extra information from the UNSAT calls of the solver. On the other hand, Rotation can give us extra information in the case of SAT calls, simply by calling the procedure \textit{RecursiveRotation}. Now we assume that we have a \textit{solver} object that can \textit{solve} a CNF instance with assumptions, and can return the model (in case the last \textit{solve} call returned \textit{SAT}). Here is the \textbf{Iterative Deletion-Based Recursive Model Rotation}:\\
 	
 	\begin{algorithm}[H]
 		\KwIn{Unsatisfiable CNF formula $ \mathcal{F} $ under set of assumptions $ \mathcal{A} $}
@@ -424,28 +430,43 @@
 			}
 		}
 		return $ \mathcal{M} $
-	\caption{Iterative Deletion with Recursive Rotation}
+	\caption{Iterative Deletion with Recursive Model Rotation}
 	\end{algorithm}
 
 	\paragraph{Correctness} Implied directly by the correctness of \textit{RecursiveRotation} and claim 2.
 	
 	\paragraph{Complexity} $ O(|\mathcal{A}|) $ solver calls, because the algorithm iterates over $ \mathcal{A} $, s.t. each iteration, it calls the solver at most once (depending on whether the assumption's "vitality" is already known).
 
-	\paragraph{Implementation} In our project, the \textit{solver} is actually MiniSAT. It provides, amongst much more, the API we used: \textit{solve, get\_model, get\_conflict\_assumptions}. In order to calculate the \textit{weak assignments} (as first presented in \textit{BasicRotation}), we had to modify the implementation of MiniSAT; by adding, for each literal, a list of the clauses in which it appears, then we added the API method \textit{get\_weak\_clauses} that, given the current assignment and a literal, scans the associated list, and returns only the clauses that are satisfied just by that literal.
+	\paragraph{Implementation} In our project, the \textit{solver} is actually \textit{MiniSAT}. It provides, amongst much more, the API we used: \textit{solve, get\_model, get\_conflict\_assumptions}. In order to calculate the \textit{weak clauses} (as first presented in \textit{BasicRotation}), we had to modify the implementation of MiniSAT; by adding, for each literal, a list of the clauses in which it appears, then we added the API method \textit{get\_weak\_clauses} that, given the current assignment and a literal, scans the associated list, and returns only the clauses that are satisfied just by that literal. In order to decouple our \textit{Assumption Minimiser} from \textit{MiniSAT} as much as possible, \textit{isVital} was implemented as a \textit{HashMap} instead of a field for the class \textit{Literal}.
 
-	
+	\pagebreak
 	\section{Benchmarks and Results}
+	\subsection{Benchmarks Description}
+	The deletion-based algorithms mentioned in section \textbf{5} were tested on about 3000 real IBM benchmarks, each query\footnote{a formula with assumptions} with about 1000 clauses each (not too large). It's worth mentioning that these are \textit{easy} queries for MiniSAT, meaning that single solver call won't take too much time. This doesn't match the principle assumption we made earlier; \textit{the bottleneck of each algorithm is the SAT-solver call, other operations are negligible.} \\
+	Most of the \textit{assumptions} in the benchmarks we already minimal, i.e., couldn't be minimised further. This doesn't mean that the minimiser was unnecessary, on the contrary; it means that the minimiser's job was to identify each assumption as \textit{vital} as quickly\footnote{with as little solver calls as possible} as possible.
+	\subsection{Results Overview}
+	The benchmarks had a total of 3142 queries - with an average of 16 assumptions (meaning that in average, the upper limit of the number of solver calls was 17 - since we have an extra call to make sure that $ \mathcal{F} $ is UNSAT under $ \mathcal{A} $).\\
+	On average, the basic \textit{Iterative Deletion} algorithm made the full number of solver calls, 17, while Iterative Deletion with Recursive Rotation spared a whole call, with 16 calls on average (4.5\% of total calls were spared by the optimization). However, the CPU time didn't improve; an addition of 8[ms] was added to each query by the optimized algorithm.
+	\paragraph{Detailed Summary}
+	Total number of examples:  3142\\
+	Average of total calls percentage spared by Optimized Rotation Deletion:  0.0453570996651\\
+	Average of cpu time spared by Optimized Rotation Deletion:  -0.000800361553151\\
+	Average of SAT calls percentage spared by Optimized Rotation Deletion:  0.0465108601432\\
+	Average of UNSAT calls percentage spared by Optimized Rotation Deletion:  0.00429965748234\\
+	
+	\subsection{Conclusions}
+	\textbf{Recursive Model Rotation} does spare a percentage of the solver calls, but it's not the best approach when dealing with small queries, since the \textit{logic} surrounding the Rotation would cost precious time, which will be significant on small CNF instances. On the other hand, we dealing with large instances, where each solver call would take minutes or even hours, then the time added by the \textit{logic} would be negligible, compared to the SAT-solver call, and would make sense to use \textbf{Recursive Model Rotation}.
 	
 	\section{Summary}
-	
+	This paper introduces an interesting technique for approaching \textit{MCA} problems. The sense that the theory makes alongside the fact that results from using the technique in the world of \textit{MUS} were astounding\cite{Rotation}, make a very promising statement that this technique could help save precious time, otherwise wasted in \textit{SAT-solving}. 
 	\pagebreak
 	\begin{thebibliography}{9}
 		
-		\bibitem{MUSRMR}
+		\bibitem{Rotation}
 			Joao Marques-Silva,
 			Anton Belov.
-			\textit{Accelerating MUS Extraction with Recursive Model Rotation},
-			2011.
+			\textit{Accelerating MUS Extraction with Recursive Model Rotation,}
+			FMCAD 2011
 			
 		\bibitem{BranchingH}
 			Joao Marques-Silva.
@@ -470,11 +491,10 @@
 		    Tomas Balyo.
 		    \textit{Practical SAT-Solving}, lectures from Spring 2018.
 		    
-		\bibitem{Rotation}
-			Joao Marques-Silva,
-			Anton Belov.
-			\textit{Accelerating MUS Extraction with Recursive Model Rotation,}
-			FMCAD 2011
+		\bibitem{MCArep}
+			Pierre Glianos,
+			Shafik Nassar.
+			https://github.com/shafiknassar/MinisatMCA
 			
 		
 		
